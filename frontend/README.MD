@@ -1,9 +1,3 @@
-
----
-
-# `frontend/README.md`
-
-```md
 # 🖥️ Frontend
 
 ## 📌 O que é esta pasta?

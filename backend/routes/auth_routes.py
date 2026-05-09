@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from backend.controllers.usuarios_controller import fazer_login
+from backend.controllers.usuarios_controller import fazer_login, criar_usuario
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -21,3 +21,17 @@ def login():
         }), 200
     except ValueError as e:
         return jsonify({"erro": str(e)}), 401
+
+@auth_bp.route('/api/auth/cadastro', methods=['POST'])
+def post_cadastro():
+    dados = request.get_json()
+    try:
+        novo_usuario = criar_usuario(
+            nome=dados.get('nome'),
+            email=dados.get('email'),
+            senha=dados.get('senha'),
+            tipo=dados.get('tipo')
+        )
+        return jsonify({"mensagem": "Usuário cadastrado com sucesso!", "id": novo_usuario.id}), 201
+    except ValueError as e:
+        return jsonify({"erro": str(e)}), 400

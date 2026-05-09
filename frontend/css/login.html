@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="col-12 col-md-5 col-lg-4">
+        
+        <!-- Card de Login inspirado no Figma -->
+        <div class="text-center p-4">
+            <h4 class="mb-4" style="color: #6c8ebf;">
+                🔒 Sistema de Solicitações Escolares
+            </h4>
+            
+            <form>
+                <!-- Campo Usuário / E-mail -->
+                <div class="mb-3">
+                    <input type="text" class="form-control rounded-pill" placeholder="👤 Usuário" required>
+                </div>
+                
+                <!-- Campo Senha -->
+                <div class="mb-4">
+                    <input type="password" class="form-control rounded-pill" placeholder="🔒 Senha" required>
+                </div>
+                
+                <!-- Botão Entrar -->
+                <button type="submit" class="btn text-white rounded-pill px-5 mb-4" style="background-color: #7997c6;">
+                    Entrar
+                </button>
+            </form>
+            
+            <!-- Links de Apoio -->
+            <div class="d-flex flex-column" style="font-size: 0.9rem;">
+                <a href="#" class="text-decoration-none text-dark mb-2 fw-bold">Esqueci minha senha</a>
+                <a href="#" class="text-decoration-none text-dark fw-bold">Contato com administrador</a>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

@@ -12,15 +12,15 @@
 O sistema possui **6 tabelas** organizadas em torno da entidade central `chamados` (solicitações):
 
 ```
-                            ┌──────────────┐
-                            │  usuarios    │
-                            ├──────────────┤
-                            │ id (PK)      │
-                            │ nome         │
-                            │ email (UK)   │
-                            │ senha        │
-                            │ tipo         │  ← professor / secretaria / admin
-                            └──────┬───────┘
+                           ┌──────────────┐       ┌──────────────┐
+                           │  usuarios    │       │   perfis     │
+                           ├──────────────┤       ├──────────────┤
+                           │ id (PK)      │       │ id (PK)      │
+                           │ nome         │◄──────│ nome (UK)    │
+                           │ email (UK)   │  FK   │ descricao    │
+                           │ senha        │       └──────────────┘
+                           │ perfil_id(FK)│
+                           └──────────────┘
                                    │
        ┌───────────────────────────┼───────────────────────────────┐
        │                           │                               │
@@ -59,6 +59,23 @@ O sistema possui **6 tabelas** organizadas em torno da entidade central `chamado
 
 ## Tabelas
 
+### `perfis`
+Tabela de perfis de acesso, substitui o campo `tipo` da tabela `usuarios` para permitir granularidade futura (RF02 / RF11).
+
+| Campo        | Tipo         | Restrições           | Observação                                      |
+|--------------|--------------|----------------------|-------------------------------------------------|
+| id         | INTEGER    | PK, auto-increment  |                                                 |
+| nome       | VARCHAR(50)| UNIQUE, NOT NULL | ex: `professor`, `secretaria`, `admin`, `direcao` |
+| descricao  | VARCHAR(255)| nullable           | descrição das permissões/escopo do perfil       |
+
+Valores padrão (seed inicial):
+| nome       | descricao                                          |
+|------------|----------------------------------------------------|
+| professor  | Cria e gerencia próprios chamados                  |
+| secretaria | Gerencia chamados, status e catálogo de materiais  |
+| admin      | Acesso total ao sistema                            |
+| direcao    | Visualização read-only de todas as solicitações    |
+
 ### `usuarios`
 Cadastro único de quem usa o sistema.
 
@@ -68,11 +85,7 @@ Cadastro único de quem usa o sistema.
 | nome | VARCHAR(100) | NOT NULL | |
 | email | VARCHAR(120) | UNIQUE, NOT NULL | usado no login |
 | senha | VARCHAR(255) | NOT NULL | hash via `werkzeug.security.generate_password_hash` |
-| tipo | VARCHAR(20) | NOT NULL, default `professor` | enum implícito |
-
-**Valores válidos de `tipo`:** `professor`, `secretaria`, `admin`.
-
-> ⚠️ **Pendência (RF02 / RF11):** O escopo prevê o perfil **Direção** (leitor read-only de todas as solicitações). Ainda não implementado — a tabela `usuarios` aceita apenas os 3 tipos acima.
+| perfil_id   | INTEGER    | FK → perfis.id, NOT NULL |
 
 ---
 
@@ -193,6 +206,7 @@ Histórico/auditoria de tudo que acontece em cada solicitação. Cobre o RF09.
 
 | De → Para | Tipo | Cardinalidade |
 |---|---|---|
+| `usuarios.perfil_id` → `perfis.id`| FK               | N:1                     |
 | `chamados.usuario_id` → `usuarios.id` | autor | 1:N |
 | `chamados.atualizado_por` → `usuarios.id` | última alteração | 1:N (nullable) |
 | `chamados.categoria_id` → `categorias.id` | classificação | 1:N (nullable) |
@@ -209,7 +223,7 @@ Histórico/auditoria de tudo que acontece em cada solicitação. Cobre o RF09.
 | Tabela proposta no escopo | Estado atual | Observação |
 |---|---|---|
 | `usuarios` | ✅ implementada | |
-| `perfis` | ❌ não criada | Tipo armazenado como string em `usuarios.tipo`. Pode ser refatorada para tabela separada se a Direção for adicionada com permissões granulares. |
+| `perfis`   | ✅ implementada | Tabela criada conforme pendência. Substitui `usuarios.tipo` |
 | `categorias` | ✅ implementada | |
 | `solicitacoes` | ✅ → `chamados` | Renomeada para alinhar com a nomenclatura usada no código original do projeto. |
 | `historico_status` | ✅ → `eventos` | Generalizada para suportar mais tipos de evento (criação, status, edição, comentário) — cobre o RF09 com mais flexibilidade. |

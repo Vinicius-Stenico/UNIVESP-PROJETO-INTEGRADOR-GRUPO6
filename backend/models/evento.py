@@ -10,6 +10,10 @@ def horario_brasilia():
 TIPO_CRIACAO = "criacao"
 TIPO_STATUS = "status"
 TIPO_COMENTARIO = "comentario"
+TIPO_EDICAO = "edicao"
+TIPO_ANEXO = "anexo"
+TIPO_CANCELAMENTO = "cancelamento"
+TIPO_REABERTURA = "reabertura"
 
 
 class Evento(db.Model):

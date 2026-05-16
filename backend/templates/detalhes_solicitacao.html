@@ -72,7 +72,7 @@
       montarAcoes();
 
       // Status finalizado: tudo read-only (sem comentário, sem ações)
-      const eFinalizado = chamado.status === 'Cancelado' || chamado.status === 'Resolvido';
+      const eFinalizado = chamado.status === 'Cancelado' || chamado.status === 'Concluído';
       document.getElementById('d-comentario-wrap').style.display = eFinalizado ? 'none' : '';
     } catch (e) {
       document.getElementById('d-erro').textContent = e.message;
@@ -119,12 +119,39 @@
     }
   }
 
+  function iconeEvento(tipo) {
+    const mapa = {
+      criacao: '📝',
+      status: '🔄',
+      comentario: '💬',
+      edicao: '✏️',
+      anexo: '📎',
+      cancelamento: '🚫',
+      reabertura: '🔁'
+    };
+
+    return mapa[tipo] || '•';
+  }
+
   function renderHistorico(eventos) {
     const el = document.getElementById('d-historico');
-    if (!eventos.length) { el.innerHTML = '<div class="hist-line">Sem eventos.</div>'; return; }
+
+    if (!eventos.length) {
+      el.innerHTML = '<div class="hist-line">Sem eventos.</div>';
+      return;
+    }
+
     el.innerHTML = eventos.map(e => {
-      const tag = e.status_novo ? ` <span class="tag-status">${AppCommon.escapeHtml(e.status_novo)}</span>` : '';
-      return `<div class="hist-line">${AppCommon.escapeHtml(AppCommon.fmtDataCurta(e.data_criacao))}: ${AppCommon.escapeHtml(e.descricao)}${tag}</div>`;
+      const tag = e.status_novo
+        ? ` <span class="tag-status">${AppCommon.escapeHtml(e.status_novo)}</span>`
+        : '';
+
+      return `
+        <div class="hist-line">
+          <strong>${iconeEvento(e.tipo)} ${AppCommon.escapeHtml(AppCommon.fmtDataCurta(e.data_criacao))}</strong><br>
+          ${AppCommon.escapeHtml(e.descricao)}${tag}
+        </div>
+      `;
     }).join('');
   }
 
@@ -152,13 +179,13 @@
     btnCanc.onclick = null;
 
     const eAtivo = chamado.status === 'Aberto' || chamado.status === 'Em andamento';
-    if (!eAtivo) return; // status Cancelado ou Resolvido → sem ações
+    if (!eAtivo) return; // status Cancelado ou Concluído → sem ações
 
     const eDono = chamado.usuario_id === usuario.id;
 
     if (ehSecretaria) {
       btnPri.textContent = 'Concluir';
-      btnPri.onclick = () => mudarStatus('Resolvido');
+      btnPri.onclick = () => mudarStatus('Concluído');
       btnPri.style.display = '';
       btnCanc.textContent = 'Cancelar solicitação';
       btnCanc.onclick = () => mudarStatus('Cancelado');
@@ -179,13 +206,13 @@
     document.getElementById('d-erro').textContent = '';
     const confirmacoes = {
       'Cancelado': 'Cancelar esta solicitação? Essa ação não pode ser desfeita.',
-      'Resolvido': 'Concluir esta solicitação?',
+      'Concluído': 'Concluir esta solicitação?',
     };
     if (confirmacoes[novo] && !confirm(confirmacoes[novo])) return;
 
     const sucessos = {
       'Cancelado': 'Solicitação cancelada.',
-      'Resolvido': 'Solicitação concluída.',
+      'Concluído': 'Solicitação concluída.',
       'Em andamento': 'Solicitação atualizada para Em andamento.',
     };
     try {

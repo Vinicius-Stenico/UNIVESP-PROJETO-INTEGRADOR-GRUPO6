@@ -24,14 +24,21 @@
 
 {% block scripts %}
 <script>
-  const usuario = AppCommon.requireUsuario();
-  const ehSecretaria = usuario && (usuario.tipo === 'secretaria' || usuario.tipo === 'admin');
+document.addEventListener('DOMContentLoaded', async () => {
+  const usuario = await AppCommon.requireUsuario();
+
+  if (!usuario) {
+    return;
+  }
+
+  const ehSecretaria = usuario.tipo === 'secretaria' || usuario.tipo === 'admin';
 
   const TABS_SECRETARIA = [
-    { label: 'Abertas',       status: 'Aberto' },
-    { label: 'Em Andamento',  status: 'Em andamento' },
-    { label: 'Concluídas',    status: 'Concluído' },
+    { label: 'Abertas',      status: 'Aberto' },
+    { label: 'Em Andamento', status: 'Em andamento' },
+    { label: 'Concluídas',   status: 'Concluído' },
   ];
+
   const TABS_PROFESSORA = [
     { label: 'Solicitações',     view: 'lista' },
     { label: 'Nova Solicitação', view: 'nova' },
@@ -41,6 +48,8 @@
   const listaEl = document.getElementById('lista');
   const titulo = document.getElementById('titulo-pagina');
   const subtitulo = document.getElementById('subtitulo');
+  const adminLink = document.getElementById('admin-link');
+  const logoutBtn = document.getElementById('logout');
 
   if (ehSecretaria) {
     titulo.textContent = 'Painel da Secretaria';
@@ -51,53 +60,71 @@
   }
 
   if (usuario.tipo === 'admin') {
-    document.getElementById('admin-link').style.display = '';
+    adminLink.style.display = '';
   }
 
   let tabAtiva = 0;
 
   function renderTabs() {
     const tabs = ehSecretaria ? TABS_SECRETARIA : TABS_PROFESSORA;
+
     tabsEl.innerHTML = '';
+
     tabs.forEach((t, i) => {
-      const b = document.createElement('button');
-      b.className = 'tab-figma' + (i === tabAtiva ? ' active' : '');
-      b.textContent = t.label;
-      b.onclick = () => {
+      const botao = document.createElement('button');
+
+      botao.className = 'tab-figma' + (i === tabAtiva ? ' active' : '');
+      botao.textContent = t.label;
+
+      botao.onclick = () => {
         if (!ehSecretaria && t.view === 'nova') {
           window.location.href = '/nova-solicitacao';
           return;
         }
+
         tabAtiva = i;
         renderTabs();
         carregar();
       };
-      tabsEl.appendChild(b);
+
+      tabsEl.appendChild(botao);
     });
   }
 
   function fmtData(s) {
-    if (!s) return '';
+    if (!s) {
+      return '';
+    }
+
     return s.split(' ')[0] || s;
   }
 
   async function carregar() {
     listaEl.innerHTML = '<div class="empty-msg">Carregando…</div>';
+
     try {
       let chamados = [];
+
       if (ehSecretaria) {
         const status = TABS_SECRETARIA[tabAtiva].status;
         const todos = await AppCommon.api('GET', '/api/chamados');
+
         chamados = todos.filter(c => c.status === status);
       } else {
-        chamados = await AppCommon.api('GET', `/api/chamados/usuario/${usuario.id}`);
+        chamados = await AppCommon.api('GET', '/api/chamados');
       }
+
       if (!chamados.length) {
         listaEl.innerHTML = '<div class="empty-msg">Nenhuma solicitação.</div>';
         return;
       }
+
       listaEl.innerHTML = '';
-      chamados.forEach(c => listaEl.appendChild(renderCard(c)));
+
+      chamados.forEach(c => {
+        listaEl.appendChild(renderCard(c));
+      });
+
     } catch (e) {
       listaEl.innerHTML = `<div class="empty-msg">Erro: ${AppCommon.escapeHtml(e.message)}</div>`;
     }
@@ -108,20 +135,46 @@
     card.className = 'card-figma';
 
     const podeEditar = !ehSecretaria && c.status === 'Aberto' && c.usuario_id === usuario.id;
+
     const labelBotao = (() => {
       if (ehSecretaria) {
-        if (c.status === 'Aberto')       return 'Atender';
-        if (c.status === 'Em andamento') return 'Atualizar';
+        if (c.status === 'Aberto') {
+          return 'Atender';
+        }
+
+        if (c.status === 'Em andamento') {
+          return 'Atualizar';
+        }
+
         return 'Ver';
       }
+
       return podeEditar ? 'Ver/Editar' : 'Ver';
     })();
+
     const destino = podeEditar ? `/nova-solicitacao?id=${c.id}` : `/detalhes/${c.id}`;
 
     const badges = [];
-    if (c.tem_anexo) badges.push(`<span class="card-badge" title="Possui anexo"><i class="bi bi-paperclip"></i></span>`);
-    if (c.total_comentarios > 0) badges.push(`<span class="card-badge" title="${c.total_comentarios} comentário(s)"><i class="bi bi-chat-dots-fill"></i> ${c.total_comentarios}</span>`);
-    const badgesHtml = badges.length ? `<span class="card-badges">${badges.join('')}</span>` : '';
+
+    if (c.tem_anexo) {
+      badges.push(`
+        <span class="card-badge" title="Possui anexo">
+          <i class="bi bi-paperclip"></i>
+        </span>
+      `);
+    }
+
+    if (c.total_comentarios > 0) {
+      badges.push(`
+        <span class="card-badge" title="${c.total_comentarios} comentário(s)">
+          <i class="bi bi-chat-dots-fill"></i> ${c.total_comentarios}
+        </span>
+      `);
+    }
+
+    const badgesHtml = badges.length
+      ? `<span class="card-badges">${badges.join('')}</span>`
+      : '';
 
     if (ehSecretaria) {
       card.innerHTML = `
@@ -130,44 +183,73 @@
           <span class="fw-bold flex-grow-1">${AppCommon.escapeHtml(c.titulo)}</span>
           ${badgesHtml}
         </div>
-        <div class="text-muted text-center small">${AppCommon.escapeHtml(c.usuario_nome || '')}</div>
-        <div class="text-muted text-center small mb-2">${AppCommon.escapeHtml(fmtData(c.data_criacao))}</div>
+
+        <div class="text-muted text-center small">
+          ${AppCommon.escapeHtml(c.usuario_nome || '')}
+        </div>
+
+        <div class="text-muted text-center small mb-2">
+          ${AppCommon.escapeHtml(fmtData(c.data_criacao))}
+        </div>
       `;
     } else {
       const classeStatus = (() => {
-        if (c.status === 'Cancelado') return 'status-pill status-cancelado';
-        if (c.status === 'Concluído') return 'status-pill status-resolvido';
-        if (c.status === 'Em andamento') return 'status-pill status-andamento';
+        if (c.status === 'Cancelado') {
+          return 'status-pill status-cancelado';
+        }
+
+        if (c.status === 'Concluído') {
+          return 'status-pill status-resolvido';
+        }
+
+        if (c.status === 'Em andamento') {
+          return 'status-pill status-andamento';
+        }
+
         return 'status-pill status-aberto';
       })();
+
       card.innerHTML = `
         <div class="d-flex align-items-baseline gap-2 mb-2">
           <span class="fw-bold">#${c.id}</span>
           <span class="fw-bold flex-grow-1">${AppCommon.escapeHtml(c.titulo)}</span>
           ${badgesHtml}
         </div>
+
         <div class="d-flex justify-content-between text-muted small">
           <span>${AppCommon.escapeHtml(c.categoria_nome || '—')}</span>
           <span>${AppCommon.escapeHtml(fmtData(c.data_criacao))}</span>
         </div>
-        <div class="text-center mt-2 mb-2"><span class="${classeStatus}">${AppCommon.escapeHtml(c.status)}</span></div>
+
+        <div class="text-center mt-2 mb-2">
+          <span class="${classeStatus}">
+            ${AppCommon.escapeHtml(c.status)}
+          </span>
+        </div>
       `;
     }
 
     const wrap = document.createElement('div');
     wrap.className = 'd-flex justify-content-center mt-2';
+
     const btn = document.createElement('button');
     btn.className = 'btn btn-figma';
     btn.textContent = labelBotao;
-    btn.onclick = () => { window.location.href = destino; };
+
+    btn.onclick = () => {
+      window.location.href = destino;
+    };
+
     wrap.appendChild(btn);
     card.appendChild(wrap);
+
     return card;
   }
 
-  document.getElementById('logout').onclick = () => AppCommon.logout('/login');
+  logoutBtn.onclick = () => AppCommon.logout('/login');
 
   renderTabs();
   carregar();
+});
 </script>
 {% endblock %}

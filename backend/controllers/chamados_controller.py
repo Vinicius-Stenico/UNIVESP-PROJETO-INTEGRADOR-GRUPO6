@@ -4,20 +4,16 @@ from models.categoria import Categoria
 from models.evento import Evento, TIPO_CRIACAO, TIPO_STATUS
 from database import db
 
+from utils.constants import (
+    STATUS_ABERTO,
+    STATUS_EM_ANDAMENTO,
+    STATUS_CONCLUIDO,
+    STATUS_CANCELADO,
+    normalizar_status,
+)
+
 def validar_status(status):
-    status = status.strip().lower()    
-
-    mapa = {
-        "aberto": "Aberto",
-        "em andamento": "Em andamento",
-        "resolvido": "Resolvido",
-        "cancelado": "Cancelado"
-    }
-
-    if status not in mapa:
-        raise ValueError("Status inválido")
-    
-    return mapa[status]
+    return normalizar_status(status)
 
 def criar_chamado(titulo, descricao, usuario_id=None, categoria_id=None,
                   anexo_path=None, anexo_nome=None):
@@ -46,7 +42,7 @@ def criar_chamado(titulo, descricao, usuario_id=None, categoria_id=None,
         usuario_id=usuario_id,
         tipo=TIPO_CRIACAO,
         descricao=f"{usuario.nome} criou a solicitação",
-        status_novo="Aberto",
+        status_novo=STATUS_ABERTO,
     )
     db.session.add(evento)
     db.session.commit()
@@ -64,7 +60,7 @@ def editar_chamado(id, usuario_id, titulo=None, descricao=None,
     if not usuario:
         raise ValueError("Usuário não encontrado")
 
-    if chamado.status in ("Cancelado", "Resolvido"):
+    if chamado.status in (STATUS_CANCELADO, STATUS_CONCLUIDO):
         raise ValueError("Solicitação encerrada — não pode mais ser editada")
 
     eh_dono_aberto = (chamado.usuario_id == usuario.id and chamado.status == "Aberto")
@@ -118,7 +114,7 @@ def atualizar_status(id, novo_status, usuario_id):
     eh_dono_cancelando = (
         novo_status == "Cancelado"
         and chamado.usuario_id == usuario.id
-        and chamado.status in ("Aberto", "Em andamento")
+        and chamado.status in (STATUS_ABERTO, STATUS_EM_ANDAMENTO)
     )
     if usuario.tipo not in ["admin", "secretaria"] and not eh_dono_cancelando:
         raise ValueError("Você não tem permissão para alterar o status")

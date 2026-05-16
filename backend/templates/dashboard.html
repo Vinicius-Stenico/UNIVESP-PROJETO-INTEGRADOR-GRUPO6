@@ -30,7 +30,7 @@
   const TABS_SECRETARIA = [
     { label: 'Abertas',       status: 'Aberto' },
     { label: 'Em Andamento',  status: 'Em andamento' },
-    { label: 'Concluídas',    status: 'Resolvido' },
+    { label: 'Concluídas',    status: 'Concluído' },
   ];
   const TABS_PROFESSORA = [
     { label: 'Solicitações',     view: 'lista' },
@@ -136,7 +136,7 @@
     } else {
       const classeStatus = (() => {
         if (c.status === 'Cancelado') return 'status-pill status-cancelado';
-        if (c.status === 'Resolvido') return 'status-pill status-resolvido';
+        if (c.status === 'Concluído') return 'status-pill status-resolvido';
         if (c.status === 'Em andamento') return 'status-pill status-andamento';
         return 'status-pill status-aberto';
       })();

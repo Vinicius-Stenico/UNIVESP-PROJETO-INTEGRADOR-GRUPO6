@@ -26,16 +26,27 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/common.js') }}?v=20"></script>
+
 <script>
-  const usuario = AppCommon.requireUsuario();
+async function iniciarAdmin() {
+  const usuario = await AppCommon.requireUsuario();
+
+  if (!usuario) {
+    return;
+  }
+
   if (usuario.tipo !== 'admin') {
     alert('Acesso restrito ao administrador.');
     window.location.href = '/dashboard';
+    return;
   }
+
   document.getElementById('subtitulo').textContent = `Olá, ${usuario.nome}!`;
   document.getElementById('logout').onclick = () => AppCommon.logout('/login');
 
   let abaAtiva = 'categorias';
+
   document.querySelectorAll('.tab-figma').forEach(b => {
     b.onclick = () => {
       document.querySelectorAll('.tab-figma').forEach(x => x.classList.remove('active'));
@@ -47,13 +58,20 @@
 
   async function renderAba() {
     document.getElementById('erro').textContent = '';
+
     const conteudo = document.getElementById('conteudo');
     conteudo.innerHTML = '<div class="empty-msg">Carregando…</div>';
+
     try {
-      if (abaAtiva === 'categorias') await renderCategorias(conteudo);
-      else if (abaAtiva === 'materiais') await renderMateriais(conteudo);
-      else if (abaAtiva === 'eventos') await renderEventos(conteudo);
-      else if (abaAtiva === 'comentarios') await renderComentarios(conteudo);
+      if (abaAtiva === 'categorias') {
+        await renderCategorias(conteudo);
+      } else if (abaAtiva === 'materiais') {
+        await renderMateriais(conteudo);
+      } else if (abaAtiva === 'eventos') {
+        await renderEventos(conteudo);
+      } else if (abaAtiva === 'comentarios') {
+        await renderComentarios(conteudo);
+      }
     } catch (e) {
       document.getElementById('erro').textContent = e.message;
       conteudo.innerHTML = '';
@@ -62,6 +80,7 @@
 
   async function renderCategorias(root) {
     const cats = await AppCommon.api('GET', '/api/categorias?todas=1');
+
     root.innerHTML = `
       <div class="card-figma">
         <h6 class="text-secondary">Nova categoria</h6>
@@ -70,40 +89,66 @@
           <button type="submit" class="btn btn-figma btn-sm">Salvar</button>
         </form>
       </div>
+
       <div class="card-figma">
         <h6 class="text-secondary">Categorias (${cats.length})</h6>
         ${cats.map(c => `
           <div class="d-flex align-items-center justify-content-between border-bottom py-2 small">
             <div>
               <span class="fw-bold">#${c.id}</span> ${AppCommon.escapeHtml(c.nome)}
-              <span class="ms-2 ${c.ativo ? 'text-success' : 'text-muted'}">${c.ativo ? '● Ativa' : '○ Inativa'}</span>
+              <span class="ms-2 ${c.ativo ? 'text-success' : 'text-muted'}">
+                ${c.ativo ? '● Ativa' : '○ Inativa'}
+              </span>
             </div>
+
             <div class="acoes-vert">
-              <button class="btn-link-mini" data-act="toggle" data-id="${c.id}" data-ativo="${!c.ativo}">${c.ativo ? 'Desativar' : 'Reativar'}</button>
-              <button class="btn-link-mini danger" data-act="del" data-id="${c.id}">Excluir</button>
+              <button class="btn-link-mini" data-act="toggle" data-id="${c.id}" data-ativo="${!c.ativo}">
+                ${c.ativo ? 'Desativar' : 'Reativar'}
+              </button>
+              <button class="btn-link-mini danger" data-act="del" data-id="${c.id}">
+                Excluir
+              </button>
             </div>
           </div>
         `).join('')}
       </div>
     `;
+
     document.getElementById('cat-form').onsubmit = async (e) => {
       e.preventDefault();
+
       try {
-        await AppCommon.api('POST', '/api/categorias', { nome: document.getElementById('cat-nome').value });
+        await AppCommon.api('POST', '/api/categorias', {
+          nome: document.getElementById('cat-nome').value
+        });
+
         renderAba();
-      } catch (er) { alert(er.message); }
+
+      } catch (er) {
+        alert(er.message);
+      }
     };
+
     root.querySelectorAll('button[data-act]').forEach(b => {
       b.onclick = async () => {
         try {
           if (b.dataset.act === 'toggle') {
-            await AppCommon.api('PUT', `/api/categorias/${b.dataset.id}`, { ativo: b.dataset.ativo === 'true' });
+            await AppCommon.api('PUT', `/api/categorias/${b.dataset.id}`, {
+              ativo: b.dataset.ativo === 'true'
+            });
           } else if (b.dataset.act === 'del') {
-            if (!confirm('Excluir categoria?')) return;
+            if (!confirm('Excluir categoria?')) {
+              return;
+            }
+
             await AppCommon.api('DELETE', `/api/categorias/${b.dataset.id}`);
           }
+
           renderAba();
-        } catch (er) { alert(er.message); }
+
+        } catch (er) {
+          alert(er.message);
+        }
       };
     });
   }
@@ -113,67 +158,120 @@
       AppCommon.api('GET', '/api/materiais?todos=1'),
       AppCommon.api('GET', '/api/categorias'),
     ]);
-    const opcoes = cats.map(c => `<option value="${c.id}">${AppCommon.escapeHtml(c.nome)}</option>`).join('');
+
+    const opcoes = cats.map(c => `
+      <option value="${c.id}">${AppCommon.escapeHtml(c.nome)}</option>
+    `).join('');
+
     root.innerHTML = `
       <div class="card-figma">
         <h6 class="text-secondary">Novo material</h6>
+
         <form id="mat-form" class="d-flex flex-column gap-2">
           <input class="form-control rounded-pill" id="mat-nome" placeholder="Nome do material" required>
-          <select class="form-select rounded-pill" id="mat-cat"><option value="">Sem categoria</option>${opcoes}</select>
+
+          <select class="form-select rounded-pill" id="mat-cat">
+            <option value="">Sem categoria</option>
+            ${opcoes}
+          </select>
+
           <input class="form-control rounded-pill" id="mat-unid" placeholder="Unidade (ex: un, cx)">
-          <button type="submit" class="btn btn-figma btn-sm align-self-end">Salvar</button>
+
+          <button type="submit" class="btn btn-figma btn-sm align-self-end">
+            Salvar
+          </button>
         </form>
       </div>
+
       <div class="card-figma">
         <h6 class="text-secondary">Materiais (${mats.length})</h6>
+
         ${mats.map(m => `
           <div class="d-flex align-items-center justify-content-between border-bottom py-2 small">
             <div class="me-2">
-              <div><span class="fw-bold">#${m.id}</span> ${AppCommon.escapeHtml(m.nome)} ${m.unidade ? `<span class="text-muted">(${AppCommon.escapeHtml(m.unidade)})</span>` : ''}</div>
-              <div class="text-muted" style="font-size:0.78rem;">${AppCommon.escapeHtml(m.categoria_nome || '—')} · ${m.ativo ? '<span class="text-success">● Ativo</span>' : '<span class="text-muted">○ Inativo</span>'}</div>
+              <div>
+                <span class="fw-bold">#${m.id}</span>
+                ${AppCommon.escapeHtml(m.nome)}
+                ${m.unidade ? `<span class="text-muted">(${AppCommon.escapeHtml(m.unidade)})</span>` : ''}
+              </div>
+
+              <div class="text-muted" style="font-size:0.78rem;">
+                ${AppCommon.escapeHtml(m.categoria_nome || '—')} ·
+                ${m.ativo ? '<span class="text-success">● Ativo</span>' : '<span class="text-muted">○ Inativo</span>'}
+              </div>
             </div>
+
             <div class="acoes-vert">
-              <button class="btn-link-mini" data-act="toggle" data-id="${m.id}" data-ativo="${!m.ativo}">${m.ativo ? 'Desativar' : 'Reativar'}</button>
-              <button class="btn-link-mini danger" data-act="del" data-id="${m.id}">Excluir</button>
+              <button class="btn-link-mini" data-act="toggle" data-id="${m.id}" data-ativo="${!m.ativo}">
+                ${m.ativo ? 'Desativar' : 'Reativar'}
+              </button>
+
+              <button class="btn-link-mini danger" data-act="del" data-id="${m.id}">
+                Excluir
+              </button>
             </div>
           </div>
         `).join('')}
       </div>
     `;
+
     document.getElementById('mat-form').onsubmit = async (e) => {
       e.preventDefault();
+
       try {
         await AppCommon.api('POST', '/api/materiais', {
           nome: document.getElementById('mat-nome').value,
           categoria_id: parseInt(document.getElementById('mat-cat').value) || null,
           unidade: document.getElementById('mat-unid').value || null,
         });
+
         renderAba();
-      } catch (er) { alert(er.message); }
+
+      } catch (er) {
+        alert(er.message);
+      }
     };
+
     root.querySelectorAll('button[data-act]').forEach(b => {
       b.onclick = async () => {
         try {
           if (b.dataset.act === 'toggle') {
-            await AppCommon.api('PUT', `/api/materiais/${b.dataset.id}`, { ativo: b.dataset.ativo === 'true' });
+            await AppCommon.api('PUT', `/api/materiais/${b.dataset.id}`, {
+              ativo: b.dataset.ativo === 'true'
+            });
           } else if (b.dataset.act === 'del') {
-            if (!confirm('Excluir material?')) return;
+            if (!confirm('Excluir material?')) {
+              return;
+            }
+
             await AppCommon.api('DELETE', `/api/materiais/${b.dataset.id}`);
           }
+
           renderAba();
-        } catch (er) { alert(er.message); }
+
+        } catch (er) {
+          alert(er.message);
+        }
       };
     });
   }
 
   async function renderEventos(root) {
     const eventos = await AppCommon.api('GET', '/api/eventos?limite=200');
+
     if (!eventos.length) {
-      root.innerHTML = '<div class="empty-msg" style="color:var(--text-muted);background:#fff;border-radius:12px;">Nenhum evento.</div>'; return;
+      root.innerHTML = `
+        <div class="empty-msg" style="color:var(--text-muted);background:#fff;border-radius:12px;">
+          Nenhum evento.
+        </div>
+      `;
+      return;
     }
+
     root.innerHTML = `
       <div class="card-figma">
         <h6 class="text-secondary">Eventos (${eventos.length})</h6>
+
         ${eventos.map(e => `
           <div class="lista-item">
             <div class="lista-meta">
@@ -182,7 +280,10 @@
               ${e.status_novo ? `<span class="lista-status">${AppCommon.escapeHtml(e.status_novo)}</span>` : ''}
               <span class="lista-data">${AppCommon.escapeHtml(e.data_criacao)}</span>
             </div>
-            <div class="lista-corpo">${AppCommon.escapeHtml(e.descricao)}</div>
+
+            <div class="lista-corpo">
+              ${AppCommon.escapeHtml(e.descricao)}
+            </div>
           </div>
         `).join('')}
       </div>
@@ -191,12 +292,20 @@
 
   async function renderComentarios(root) {
     const comentarios = await AppCommon.api('GET', '/api/comentarios');
+
     if (!comentarios.length) {
-      root.innerHTML = '<div class="empty-msg" style="color:var(--text-muted);background:#fff;border-radius:12px;">Nenhum comentário.</div>'; return;
+      root.innerHTML = `
+        <div class="empty-msg" style="color:var(--text-muted);background:#fff;border-radius:12px;">
+          Nenhum comentário.
+        </div>
+      `;
+      return;
     }
+
     root.innerHTML = `
       <div class="card-figma">
         <h6 class="text-secondary">Comentários (${comentarios.length})</h6>
+
         ${comentarios.map(c => `
           <div class="lista-item">
             <div class="lista-meta">
@@ -204,7 +313,10 @@
               <strong>${AppCommon.escapeHtml(c.usuario_nome || '-')}</strong>
               <span class="lista-data">${AppCommon.escapeHtml(c.data_criacao)}</span>
             </div>
-            <div class="lista-corpo">${AppCommon.escapeHtml(c.texto)}</div>
+
+            <div class="lista-corpo">
+              ${AppCommon.escapeHtml(c.texto)}
+            </div>
           </div>
         `).join('')}
       </div>
@@ -212,5 +324,12 @@
   }
 
   renderAba();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', iniciarAdmin);
+} else {
+  iniciarAdmin();
+}
 </script>
 {% endblock %}

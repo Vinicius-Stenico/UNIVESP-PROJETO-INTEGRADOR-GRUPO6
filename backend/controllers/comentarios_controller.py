@@ -26,7 +26,7 @@ def criar_comentario(chamado_id, usuario_id, texto):
     chamado = Chamado.query.get(chamado_id)
     if not chamado:
         raise ValueError("Chamado não encontrado")
-    if chamado.status in (STATUS_CANCELADO, STATUS_CANCELADO):
+    if chamado.status in (STATUS_CANCELADO, STATUS_CONCLUIDO):
         raise ValueError("Solicitação encerrada — não aceita mais comentários")
     usuario = Usuario.query.get(usuario_id)
     if not usuario:
@@ -46,6 +46,6 @@ def criar_comentario(chamado_id, usuario_id, texto):
         tipo=TIPO_COMENTARIO,
         descricao=f"{usuario.nome} comentou: {texto_resumo}",
     )
-    
+
     db.session.commit()
     return coment

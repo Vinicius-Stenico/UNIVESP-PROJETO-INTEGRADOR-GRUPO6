@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from backend.controllers.usuarios_controller import fazer_login, criar_usuario
+from controllers.usuarios_controller import fazer_login, criar_usuario
 
 auth_bp = Blueprint('auth', __name__)
 

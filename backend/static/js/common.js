@@ -6,7 +6,13 @@ window.AppCommon = (function () {
   function setUsuario(u) {
     sessionStorage.setItem('usuario', JSON.stringify(u));
   }
-  function logout(redirect) {
+  async function logout(redirect) {
+    try {
+      await fetch('/api/logout', { method: 'POST' });
+    } catch (e) {
+      console.warn("Erro ao encerrar sessão no backend:", e)
+    }
+
     sessionStorage.removeItem('usuario');
     window.location.href = redirect || '/login';
   }

@@ -1,6 +1,7 @@
 import os
 import uuid
 from flask import Blueprint, jsonify, request, send_from_directory, current_app, abort
+from utils.auth import login_required, usuario_logado, pode_ver_chamado
 from werkzeug.utils import secure_filename
 from controllers.chamados_controller import (
     listar_chamados_recentes,
@@ -58,67 +59,112 @@ def _ler_payload():
 
 
 @chamados_bp.route('/api/chamados', methods=['GET'])
+@login_required
 def get_chamados():
-    return jsonify(listar_chamados_recentes()), 200
+    usuario = usuario_logado()
+
+    if usuario.tipo in ("admin", "secretaria"):
+        return jsonify(listar_chamados_recentes()), 200
+
+    return jsonify(listar_chamados_por_usuario(usuario.id)), 200
 
 
 @chamados_bp.route('/api/chamados', methods=['POST'])
+@login_required
 def post_chamado():
     try:
+        usuario = usuario_logado()
         dados, arquivo = _ler_payload()
+
         anexo_path, anexo_nome = (None, None)
+
         if arquivo:
             anexo_path, anexo_nome = _salvar_arquivo(arquivo)
+
         novo = criar_chamado(
             dados.get('titulo'),
             dados.get('descricao'),
-            dados.get('usuario_id'),
+            usuario.id,
             categoria_id=dados.get('categoria_id'),
             anexo_path=anexo_path,
             anexo_nome=anexo_nome,
         )
-        return jsonify({"mensagem": "Chamado criado com sucesso!", "id": novo.id}), 201
+
+        return jsonify({
+            "mensagem": "Chamado criado com sucesso!",
+            "id": novo.id
+        }), 201
+
     except ValueError as e:
         return jsonify({"erro": str(e)}), 400
+
     except Exception as e:
         return jsonify({"erro": str(e)}), 400
 
 
 @chamados_bp.route('/api/chamados/<int:id>', methods=['GET'])
+@login_required
 def get_chamado_id(id):
     try:
+        usuario = usuario_logado()
+        chamado = Chamado.query.get(id)
+
+        if not chamado:
+            return jsonify({"erro": "Chamado não encontrado"}), 404
+
+        if not pode_ver_chamado(usuario, chamado):
+            return jsonify({"erro": "Você não tem permissão para visualizar este chamado"}), 403
+
         return jsonify(buscar_chamado_por_id(id)), 200
+
     except ValueError as e:
         return jsonify({"erro": str(e)}), 404
 
 
 @chamados_bp.route('/api/chamados/<int:id>', methods=['PUT'])
+@login_required
 def put_chamado(id):
     try:
+        usuario = usuario_logado()
         dados, arquivo = _ler_payload()
+
         anexo_path, anexo_nome = (None, None)
+
         if arquivo:
             anexo_path, anexo_nome = _salvar_arquivo(arquivo)
+
         chamado = editar_chamado(
             id,
-            usuario_id=dados.get('usuario_id'),
+            usuario_id=usuario.id,
             titulo=dados.get('titulo'),
             descricao=dados.get('descricao'),
             categoria_id=dados.get('categoria_id'),
             anexo_path=anexo_path,
             anexo_nome=anexo_nome,
         )
+
         return jsonify(chamado.to_dict()), 200
+
     except ValueError as e:
         return jsonify({"erro": str(e)}), 400
 
 
 @chamados_bp.route('/api/chamados/<int:id>/status', methods=['PUT'])
+@login_required
 def put_status(id):
-    dados = request.get_json()
+    dados = request.get_json() or {}
+
     try:
-        resultado = atualizar_status(id, dados.get('status'), dados.get('usuario_id'))
-        return jsonify(resultado), 200
+        usuario = usuario_logado()
+
+        chamado = atualizar_status(
+            id,
+            dados.get('status'),
+            usuario.id
+        )
+
+        return jsonify(chamado), 200
+
     except ValueError as e:
         return jsonify({"erro": str(e)}), 400
 
@@ -144,11 +190,19 @@ def get_busca():
 
 
 @chamados_bp.route('/api/chamados/<int:id>/anexo', methods=['GET'])
+@login_required
 def get_anexo(id):
+    usuario = usuario_logado()
     chamado = Chamado.query.get(id)
+
     if not chamado or not chamado.anexo_path:
         abort(404)
+
+    if not pode_ver_chamado(usuario, chamado):
+        return jsonify({"erro": "Você não tem permissão para acessar este anexo"}), 403
+
     upload_dir = current_app.config['UPLOAD_FOLDER']
+
     return send_from_directory(
         upload_dir,
         chamado.anexo_path,

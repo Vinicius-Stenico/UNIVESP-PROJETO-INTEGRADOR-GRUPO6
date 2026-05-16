@@ -1,15 +1,28 @@
 from models.chamado import Chamado
 from models.usuario import Usuario
 from models.categoria import Categoria
-from models.evento import Evento, TIPO_CRIACAO, TIPO_STATUS
+from controllers.eventos_controller import criar_evento
 from database import db
-
 from utils.constants import (
     STATUS_ABERTO,
     STATUS_EM_ANDAMENTO,
     STATUS_CONCLUIDO,
     STATUS_CANCELADO,
     normalizar_status,
+)
+from models.evento import (
+    TIPO_CRIACAO,
+    TIPO_STATUS,
+    TIPO_EDICAO,
+    TIPO_ANEXO,
+    TIPO_CANCELAMENTO,
+    TIPO_REABERTURA,
+)
+from utils.constants import (
+    STATUS_ABERTO,
+    STATUS_EM_ANDAMENTO,
+    STATUS_CONCLUIDO,
+    STATUS_CANCELADO,
 )
 
 def validar_status(status):
@@ -32,19 +45,28 @@ def criar_chamado(titulo, descricao, usuario_id=None, categoria_id=None,
         categoria_id=categoria_id,
         anexo_path=anexo_path,
         anexo_nome=anexo_nome,
+        status=STATUS_ABERTO
     )
 
     db.session.add(chamado)
     db.session.flush()
 
-    evento = Evento(
+    criar_evento(
         chamado_id=chamado.id,
         usuario_id=usuario_id,
         tipo=TIPO_CRIACAO,
         descricao=f"{usuario.nome} criou a solicitação",
         status_novo=STATUS_ABERTO,
     )
-    db.session.add(evento)
+
+    if anexo_nome:
+        criar_evento(
+            chamado_id=chamado.id,
+            usuario_id=usuario_id,
+            tipo=TIPO_ANEXO,
+            descricao=f"{usuario.nome} anexou o arquivo: {anexo_nome}",
+        )
+
     db.session.commit()
 
     return chamado
@@ -52,6 +74,8 @@ def criar_chamado(titulo, descricao, usuario_id=None, categoria_id=None,
 
 def editar_chamado(id, usuario_id, titulo=None, descricao=None,
                    categoria_id=None, anexo_path=None, anexo_nome=None):
+    alteracoes = []
+    
     chamado = Chamado.query.get(id)
     if not chamado:
         raise ValueError("Chamado não encontrado")
@@ -69,32 +93,57 @@ def editar_chamado(id, usuario_id, titulo=None, descricao=None,
         raise ValueError("Você não tem permissão para editar essa solicitação")
 
     if categoria_id is not None:
-        if categoria_id and not Categoria.query.get(categoria_id):
-            raise ValueError("Categoria não encontrada")
-        chamado.categoria_id = categoria_id or None
+        categoria_antiga = chamado.categoria.nome if chamado.categoria else "sem categoria"
+
+        if categoria_id:
+            nova_categoria = Categoria.query.get(categoria_id)
+
+            if not nova_categoria:
+                raise ValueError("Categoria não encontrada")
+            
+            categoria_nova = nova_categoria.nome
+        else:
+            categoria_nova = "Sem categoria"
+
+        if chamado.categoria_id != categoria_id:
+            alteracoes.append(f"Categoria alterada de '{categoria_antiga}' para '{categoria_nova}'")
+            chamado.categoria_id = categoria_id or None
 
     if titulo is not None:
         titulo = titulo.strip()
+
         if not titulo:
             raise ValueError("Título não pode ser vazio")
-        chamado.titulo = titulo
+        
+        if chamado.titulo != titulo:
+            alteracoes.append(f"Título alterado de '{chamado.titulo}' para '{titulo}'")
+            chamado.titulo = titulo
 
     if descricao is not None:
-        chamado.descricao = descricao
+        if chamado.descricao != descricao:
+            alteracoes.append("Descrição alterada")
+            chamado.descricao = descricao
 
     if anexo_path is not None:
         chamado.anexo_path = anexo_path
         chamado.anexo_nome = anexo_nome
 
+        if anexo_nome:
+            alteracoes.append(f"Novo anexo enviado: {anexo_nome}")
+
     chamado.atualizado_por = usuario_id
 
-    evento = Evento(
+    if alteracoes:
+        descricao_evento = f"{usuario.nome} editou a solicitação: " + "; ".join(alteracoes)
+    else:
+        descricao_evento = f"{usuario.nome} acessou a edição, mas não alterou informações"
+
+    criar_evento(
         chamado_id=chamado.id,
         usuario_id=usuario_id,
-        tipo="edicao",
-        descricao=f"{usuario.nome} editou a solicitação",
+        tipo=TIPO_EDICAO,
+        descricao=descricao_evento,
     )
-    db.session.add(evento)
     db.session.commit()
 
     return chamado
@@ -122,17 +171,27 @@ def atualizar_status(id, novo_status, usuario_id):
     if chamado.status == novo_status:
         raise ValueError("Chamado já está com esse status")
 
+    status_anterior = chamado.status
+
     chamado.status = novo_status
     chamado.atualizado_por = usuario_id
 
-    evento = Evento(
+    tipo_evento = TIPO_STATUS
+
+    if novo_status == STATUS_CANCELADO:
+        tipo_evento = TIPO_CANCELAMENTO
+
+    elif status_anterior == STATUS_CONCLUIDO and novo_status != STATUS_CONCLUIDO:
+        tipo_evento = TIPO_REABERTURA
+
+    criar_evento(
         chamado_id=chamado.id,
         usuario_id=usuario_id,
-        tipo=TIPO_STATUS,
-        descricao=f"{usuario.nome} alterou o status para {novo_status}",
+        tipo=tipo_evento,
+        descricao=f"{usuario.nome} alterou o status de '{status_anterior}' para '{novo_status}'",
         status_novo=novo_status,
     )
-    db.session.add(evento)
+
     db.session.commit()
 
     return chamado.to_dict()

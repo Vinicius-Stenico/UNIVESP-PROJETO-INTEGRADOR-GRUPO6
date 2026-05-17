@@ -1,6 +1,11 @@
 import os
 from flask import Flask, render_template, redirect
+
+
 from database import db
+
+
+# Importa os models para o SQLAlchemy reconhecer as tabelas no db.create_all()
 from models.chamado import Chamado
 from models.usuario import Usuario
 from models.categoria import Categoria
@@ -8,7 +13,7 @@ from models.material import Material
 from models.comentario import Comentario
 from models.evento import Evento
 
-# Inclusão das Rotas:
+# Blueprints da API
 from routes.chamados_routes import chamados_bp
 from routes.auth_routes import auth_bp
 from routes.usuarios_routes import usuarios_bp
@@ -19,6 +24,9 @@ from routes.eventos_routes import eventos_bp
 
 app = Flask(__name__)
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Configurações principais
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URI', 'sqlite:///chamados.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False

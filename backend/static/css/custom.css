@@ -207,7 +207,7 @@ html, body {
   background: #d6e4f3;
   color: #305980;
 }
-.status-resolvido {
+.status-concluido {
   background: #d6efd9;
   color: #2f6b35;
 }
@@ -296,4 +296,54 @@ html, body {
   font-size: 0.85rem;
   margin-top: 8px;
   min-height: 18px;
+}
+
+.prioridade-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.prioridade-baixa {
+  background: #e8f2e8;
+  color: #3b6d3b;
+}
+
+.prioridade-normal {
+  background: #eef3f9;
+  color: #305980;
+}
+
+.prioridade-alta {
+  background: #fff1d6;
+  color: #8a5a00;
+}
+
+.prioridade-urgente {
+  background: #f8d7da;
+  color: #842029;
+}
+
+.meta-chamado {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.responsavel-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f7f8f0;
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-weight: 600;
 }

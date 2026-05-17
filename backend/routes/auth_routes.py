@@ -1,37 +1,52 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
 from controllers.usuarios_controller import fazer_login, criar_usuario
+from utils.auth import login_required, usuario_logado
 
 auth_bp = Blueprint('auth', __name__)
 
+
 @auth_bp.route('/api/login', methods=['POST'])
 def login():
-    dados = request.get_json()
+    dados = request.get_json() or {}
+
     email = dados.get('email')
     senha = dados.get('senha')
 
     try:
         usuario = fazer_login(email, senha)
-        return jsonify({
-            "mensagem": "Login realizado!",
-            "usuario": {
-                "id": usuario.id,
-                "nome": usuario.nome,
-                "tipo": usuario.tipo
-            }
-        }), 200
-    except ValueError as e:
-        return jsonify({"erro": str(e)}), 401
+        
+        session["usuario_id"] = usuario.id
 
-@auth_bp.route('/api/auth/cadastro', methods=['POST'])
-def post_cadastro():
-    dados = request.get_json()
+        return jsonify(usuario.to_dict()), 200
+    
+    except ValueError as e:
+        return jsonify({"erro": str(e)}), 400
+
+@auth_bp.route("/api/logout", methods=["POST"])
+def logout():
+    session.clear()
+    return jsonify({"mensagem": "Logout realizado com sucesso"}), 200
+
+
+@auth_bp.route("/api/me", methods=["GET"])
+@login_required
+def me():
+    usuario = usuario_logado()
+    return jsonify(usuario.to_dict()), 200
+
+
+@auth_bp.route("/api/usuarios", methods=["POST"])
+def post_usuario():
+    dados = request.get_json() or {}
+
     try:
-        novo_usuario = criar_usuario(
-            nome=dados.get('nome'),
-            email=dados.get('email'),
-            senha=dados.get('senha'),
-            tipo=dados.get('tipo')
+        usuario = criar_usuario(
+            nome=dados.get("nome"),
+            email=dados.get("email"),
+            senha=dados.get("senha"),
+            tipo=dados.get("tipo"),
         )
-        return jsonify({"mensagem": "Usuário cadastrado com sucesso!", "id": novo_usuario.id}), 201
+        return jsonify(usuario.to_dict()), 201
+    
     except ValueError as e:
         return jsonify({"erro": str(e)}), 400

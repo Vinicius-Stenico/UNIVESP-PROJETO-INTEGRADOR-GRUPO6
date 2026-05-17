@@ -46,7 +46,7 @@
         email: document.getElementById('email').value.trim(),
         senha: document.getElementById('senha').value,
       });
-      AppCommon.setUsuario(data.usuario);
+      AppCommon.setUsuario(data);
       window.location.href = '/dashboard';
     } catch (e) {
       erro.textContent = e.message;

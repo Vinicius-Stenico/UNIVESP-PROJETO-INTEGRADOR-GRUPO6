@@ -59,8 +59,10 @@ O sistema possui **6 tabelas** organizadas em torno da entidade central `chamado
 
 ## Tabelas
 
-### `perfis`
-Tabela de perfis de acesso, substitui o campo `tipo` da tabela `usuarios` para permitir granularidade futura (RF02 / RF11).
+### `perfis` (planejada)
+Tabela de perfis de acesso planejada para substituir o campo `tipo` da tabela `usuarios` e permitir granularidade futura (RF02 / RF11).
+
+> Estado atual do código: a tabela `perfis` ainda não existe nos models. As permissões usam `usuarios.tipo` diretamente.
 
 | Campo        | Tipo         | Restrições           | Observação                                      |
 |--------------|--------------|----------------------|-------------------------------------------------|
@@ -85,7 +87,7 @@ Cadastro único de quem usa o sistema.
 | nome | VARCHAR(100) | NOT NULL | |
 | email | VARCHAR(120) | UNIQUE, NOT NULL | usado no login |
 | senha | VARCHAR(255) | NOT NULL | hash via `werkzeug.security.generate_password_hash` |
-| perfil_id   | INTEGER    | FK → perfis.id, NOT NULL |
+| tipo | VARCHAR(20) | NOT NULL, default `professor` | usado atualmente para permissões (`professor`, `secretaria`, `admin`) |
 
 ---
 
@@ -206,7 +208,7 @@ Histórico/auditoria de tudo que acontece em cada solicitação. Cobre o RF09.
 
 | De → Para | Tipo | Cardinalidade |
 |---|---|---|
-| `usuarios.perfil_id` → `perfis.id`| FK               | N:1                     |
+| `usuarios.tipo` | texto | Perfil atual usado pelas regras de permissão |
 | `chamados.usuario_id` → `usuarios.id` | autor | 1:N |
 | `chamados.atualizado_por` → `usuarios.id` | última alteração | 1:N (nullable) |
 | `chamados.categoria_id` → `categorias.id` | classificação | 1:N (nullable) |
@@ -223,7 +225,7 @@ Histórico/auditoria de tudo que acontece em cada solicitação. Cobre o RF09.
 | Tabela proposta no escopo | Estado atual | Observação |
 |---|---|---|
 | `usuarios` | ✅ implementada | |
-| `perfis`   | ✅ implementada | Tabela criada conforme pendência. Substitui `usuarios.tipo` |
+| `perfis`   | ⏳ planejada | Ainda não implementada no código. O sistema usa `usuarios.tipo` |
 | `categorias` | ✅ implementada | |
 | `solicitacoes` | ✅ → `chamados` | Renomeada para alinhar com a nomenclatura usada no código original do projeto. |
 | `historico_status` | ✅ → `eventos` | Generalizada para suportar mais tipos de evento (criação, status, edição, comentário) — cobre o RF09 com mais flexibilidade. |

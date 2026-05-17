@@ -106,7 +106,7 @@ async function iniciarAdmin() {
                 ${c.ativo ? 'Desativar' : 'Reativar'}
               </button>
               <button class="btn-link-mini danger" data-act="del" data-id="${c.id}">
-                Excluir
+                Desativar
               </button>
             </div>
           </div>
@@ -137,7 +137,7 @@ async function iniciarAdmin() {
               ativo: b.dataset.ativo === 'true'
             });
           } else if (b.dataset.act === 'del') {
-            if (!confirm('Excluir categoria?')) {
+            if (!confirm('Desativar categoria?')) {
               return;
             }
 
@@ -207,7 +207,7 @@ async function iniciarAdmin() {
               </button>
 
               <button class="btn-link-mini danger" data-act="del" data-id="${m.id}">
-                Excluir
+                Desativar
               </button>
             </div>
           </div>
@@ -240,7 +240,7 @@ async function iniciarAdmin() {
               ativo: b.dataset.ativo === 'true'
             });
           } else if (b.dataset.act === 'del') {
-            if (!confirm('Excluir material?')) {
+            if (!confirm('Desativar material?')) {
               return;
             }
 

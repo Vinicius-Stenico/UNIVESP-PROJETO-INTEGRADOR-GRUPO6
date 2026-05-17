@@ -14,6 +14,7 @@ TIPO_EDICAO = "edicao"
 TIPO_ANEXO = "anexo"
 TIPO_CANCELAMENTO = "cancelamento"
 TIPO_REABERTURA = "reabertura"
+TIPO_ATRIBUICAO = "atribuicao"
 
 
 class Evento(db.Model):

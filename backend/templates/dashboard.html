@@ -130,6 +130,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  function classePrioridade(prioridade) {
+    if (prioridade === 'Urgente') return 'prioridade-pill prioridade-urgente';
+    if (prioridade === 'Alta') return 'prioridade-pill prioridade-alta';
+    if (prioridade === 'Baixa') return 'prioridade-pill prioridade-baixa';
+    return 'prioridade-pill prioridade-normal';
+  }
+
+  function textoResponsavel(c) {
+    return c.responsavel_nome ? `👤 ${c.responsavel_nome}` : '👤 Sem responsável';
+  }
+
   function renderCard(c) {
     const card = document.createElement('div');
     card.className = 'card-figma';
@@ -155,6 +166,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const destino = podeEditar ? `/nova-solicitacao?id=${c.id}` : `/detalhes/${c.id}`;
 
     const badges = [];
+    const prioridade = c.prioridade || 'Normal';
+    const prioridadeHtml = `<span class="${classePrioridade(prioridade)}">${AppCommon.escapeHtml(prioridade)}</span>`;
+    const responsavelHtml = `<span class="responsavel-info">${AppCommon.escapeHtml(textoResponsavel(c))}</span>`;
 
     if (c.tem_anexo) {
       badges.push(`
@@ -184,12 +198,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           ${badgesHtml}
         </div>
 
-        <div class="text-muted text-center small">
-          ${AppCommon.escapeHtml(c.usuario_nome || '')}
-        </div>
+        <div class="text-muted text-center small">${AppCommon.escapeHtml(c.usuario_nome || '')}</div>
+        <div class="text-muted text-center small mb-2">${AppCommon.escapeHtml(fmtData(c.data_criacao))}</div>
 
-        <div class="text-muted text-center small mb-2">
-          ${AppCommon.escapeHtml(fmtData(c.data_criacao))}
+        <div class="meta-chamado justify-content-center">
+          ${prioridadeHtml}
+          ${responsavelHtml}
         </div>
       `;
     } else {
@@ -221,10 +235,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           <span>${AppCommon.escapeHtml(fmtData(c.data_criacao))}</span>
         </div>
 
+        <div class="meta-chamado justify-content-center">
+          ${prioridadeHtml}
+          ${responsavelHtml}
+        </div>
+
         <div class="text-center mt-2 mb-2">
-          <span class="${classeStatus}">
-            ${AppCommon.escapeHtml(c.status)}
-          </span>
+          <span class="${classeStatus}">${AppCommon.escapeHtml(c.status)}</span>
         </div>
       `;
     }
@@ -236,7 +253,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     btn.className = 'btn btn-figma';
     btn.textContent = labelBotao;
 
-    btn.onclick = () => {
+    btn.onclick = async () => {
+      if (ehSecretaria && c.status === 'Aberto' && !c.responsavel_id) {
+        try {
+          await AppCommon.api('PUT', `/api/chamados/${c.id}/assumir`);
+          await carregar();
+        } catch (e) {
+          alert(e.message);
+        }
+        return;
+      }
+
       window.location.href = destino;
     };
 

@@ -11,6 +11,8 @@
     <div id="d-data"></div>
     <div id="d-categoria"></div>
     <div id="d-status"></div>
+    <div id="d-prioridade"></div>
+    <div id="d-responsavel"></div>
   </div>
 
   <div id="d-itens-bloco" style="display:none;" class="detail-card">
@@ -108,6 +110,13 @@
     return out;
   }
 
+  function classePrioridade(prioridade) {
+    if (prioridade === 'Urgente') return 'prioridade-pill prioridade-urgente';
+    if (prioridade === 'Alta') return 'prioridade-pill prioridade-alta';
+    if (prioridade === 'Baixa') return 'prioridade-pill prioridade-baixa';
+    return 'prioridade-pill prioridade-normal';
+  }
+
   function renderChamado() {
     document.getElementById('d-id').textContent = chamado.id;
     document.getElementById('d-titulo').textContent = chamado.titulo;
@@ -115,6 +124,12 @@
     if (chamado.categoria_nome) {
       document.getElementById('d-categoria').innerHTML = `<strong>Categoria:</strong> ${AppCommon.escapeHtml(chamado.categoria_nome)}`;
     }
+    const prioridade = chamado.prioridade || 'Normal';
+    document.getElementById('d-prioridade').innerHTML =
+      `<strong>Prioridade:</strong> <span class="${classePrioridade(prioridade)}">${AppCommon.escapeHtml(prioridade)}</span>`;
+
+    document.getElementById('d-responsavel').innerHTML =
+      `<strong>Responsável:</strong> ${AppCommon.escapeHtml(chamado.responsavel_nome || 'Ainda não assumido')}`;
     document.getElementById('d-status').innerHTML = `<strong>Status:</strong> <span class="tag-status">${AppCommon.escapeHtml(chamado.status)}</span>`;
     if (ehSecretaria) {
       document.getElementById('d-solicitante').innerHTML = `<strong>Solicitante:</strong> ${AppCommon.escapeHtml(chamado.usuario_nome || '-')}`;
@@ -204,12 +219,27 @@
     const eDono = chamado.usuario_id === usuario.id;
 
     if (ehSecretaria) {
-      btnPri.textContent = 'Concluir';
-      btnPri.onclick = () => mudarStatus('Concluído');
-      btnPri.style.display = '';
+      if (chamado.status === 'Aberto' && !chamado.responsavel_id) {
+        btnPri.textContent = 'Assumir';
+        btnPri.onclick = () => assumirChamado();
+        btnPri.style.display = '';
+
+      } else if (chamado.status === 'Aberto') {
+        btnPri.textContent = 'Iniciar atendimento';
+        btnPri.onclick = () => mudarStatus('Em andamento');
+        btnPri.style.display = '';
+
+      } else if (chamado.status === 'Em andamento') {
+        btnPri.textContent = 'Concluir';
+        btnPri.onclick = () => mudarStatus('Concluído');
+        btnPri.style.display = '';
+      }
+
       btnCanc.textContent = 'Cancelar solicitação';
       btnCanc.onclick = () => mudarStatus('Cancelado');
       btnCanc.style.display = '';
+
+      acoes.style.display = '';
     } else if (eDono) {
       // dono pode cancelar a própria solicitação ativa, mas não edita por aqui
       btnCanc.textContent = 'Cancelar solicitação';
@@ -219,6 +249,28 @@
 
     if (btnPri.style.display !== 'none' || btnCanc.style.display !== 'none') {
       acoes.style.display = 'flex';
+    }
+  }
+
+  async function assumirChamado() {
+    document.getElementById('d-erro').textContent = '';
+
+    try {
+      chamado = await AppCommon.api('PUT', `/api/chamados/${id}/assumir`);
+
+      renderChamado();
+      montarAcoes();
+
+      const [eventos, comentarios] = await Promise.all([
+        AppCommon.api('GET', `/api/chamados/${id}/eventos`),
+        AppCommon.api('GET', `/api/chamados/${id}/comentarios`),
+      ]);
+
+      renderHistorico(eventos);
+      renderComentarios(comentarios);
+
+    } catch (e) {
+      document.getElementById('d-erro').textContent = e.message;
     }
   }
 

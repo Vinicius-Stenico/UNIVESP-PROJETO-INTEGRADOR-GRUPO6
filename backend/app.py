@@ -16,6 +16,7 @@ from models.evento import Evento
 # Blueprints da API
 from routes.chamados_routes import chamados_bp
 from routes.auth_routes import auth_bp
+from routes.usuarios_routes import usuarios_bp
 from routes.categorias_routes import categorias_bp
 from routes.materiais_routes import materiais_bp
 from routes.comentarios_routes import comentarios_bp
@@ -37,6 +38,7 @@ db.init_app(app)
 # Inclusão dos Blueprints:
 app.register_blueprint(chamados_bp)
 app.register_blueprint(auth_bp)
+app.register_blueprint(usuarios_bp)
 app.register_blueprint(categorias_bp)
 app.register_blueprint(materiais_bp)
 app.register_blueprint(comentarios_bp)

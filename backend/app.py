@@ -26,9 +26,20 @@ app = Flask(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+
+def env_bool(nome, padrao=False):
+    valor = os.environ.get(nome)
+    if valor is None:
+        return padrao
+    return valor.strip().lower() in ("1", "true", "yes", "on")
+
 # Configurações principais
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URI', 'sqlite:///chamados.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = (
+    os.environ.get('DATABASE_URI')
+    or os.environ.get('DATABASE_URL')
+    or 'sqlite:///chamados.db'
+)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB
@@ -71,8 +82,9 @@ def page_admin():
     return render_template('admin.html')
 
 
-with app.app_context():
-    db.create_all()
+if env_bool("AUTO_CREATE_DB", True):
+    with app.app_context():
+        db.create_all()
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=env_bool("FLASK_DEBUG", False))

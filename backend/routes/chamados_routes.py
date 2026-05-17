@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request, send_from_directory, current_app, abort
-from utils.auth import login_required, usuario_logado, pode_ver_chamado
+from utils.auth import login_required, admin_required, usuario_logado, pode_ver_chamado
 from utils.arquivos import salvar_anexo, excluir_anexo
 from controllers.chamados_controller import (
     listar_chamados_recentes,
@@ -16,9 +16,6 @@ from controllers.chamados_controller import (
 from models.chamado import Chamado
 
 chamados_bp = Blueprint('chamados', __name__)
-
-ALLOWED_EXT = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx', 'txt'}
-
 
 def _ler_payload():
     """Aceita JSON ou multipart/form-data. Retorna (dados_dict, arquivo_storage_ou_none)."""
@@ -80,9 +77,10 @@ def post_chamado():
         excluir_anexo(anexo_path)
         return jsonify({"erro": str(e)}), 400
     
-    except Exception as e:
+    except Exception:
         excluir_anexo(anexo_path)
-        return jsonify({"erro": str(e)}), 400
+        current_app.logger.exception("Erro inesperado ao criar chamado")
+        return jsonify({"erro": "Erro inesperado ao criar chamado"}), 500
 
 @chamados_bp.route('/api/chamados/<int:id>', methods=['GET'])
 @login_required
@@ -144,9 +142,10 @@ def put_chamado(id):
         excluir_anexo(novo_anexo_path)
         return jsonify({"erro": str(e)}), 400
     
-    except Exception as e:
+    except Exception:
         excluir_anexo(novo_anexo_path)
-        return jsonify({"erro": str(e)}), 400   
+        current_app.logger.exception("Erro inesperado ao editar chamado")
+        return jsonify({"erro": "Erro inesperado ao editar chamado"}), 500   
 
 
 @chamados_bp.route('/api/chamados/<int:id>/status', methods=['PUT'])
@@ -170,6 +169,7 @@ def put_status(id):
 
 
 @chamados_bp.route('/api/chamados/<int:id>', methods=['DELETE'])
+@admin_required
 def delete_chamado(id):
     try:
         deletar_chamado(id)
@@ -179,14 +179,27 @@ def delete_chamado(id):
 
 
 @chamados_bp.route('/api/chamados/usuario/<int:usuario_id>', methods=['GET'])
+@login_required
 def get_por_usuario(usuario_id):
+    usuario = usuario_logado()
+
+    if usuario.tipo not in ("admin", "secretaria") and usuario.id != usuario_id:
+        return jsonify({"erro": "Você não tem permissão para visualizar estes chamados"}), 403
+
     return jsonify(listar_chamados_por_usuario(usuario_id)), 200
 
 
 @chamados_bp.route('/api/chamados/busca', methods=['GET'])
+@login_required
 def get_busca():
+    usuario = usuario_logado()
     texto = request.args.get('q', '')
-    return jsonify(buscar_chamados_por_texto(texto)), 200
+    chamados = buscar_chamados_por_texto(texto)
+
+    if usuario.tipo not in ("admin", "secretaria"):
+        chamados = [c for c in chamados if c.get("usuario_id") == usuario.id]
+
+    return jsonify(chamados), 200
 
 
 @chamados_bp.route('/api/chamados/<int:id>/anexo', methods=['GET'])

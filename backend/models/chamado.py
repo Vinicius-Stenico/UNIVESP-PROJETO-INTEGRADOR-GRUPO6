@@ -45,12 +45,16 @@ class Chamado(db.Model):
         onupdate=horario_brasilia
     )
 
-    def to_dict(self):
+    def to_dict(self, total_comentarios=None, atualizado_por_nome=None):
         from models.comentario import Comentario  # import local para evitar ciclo
-        usuario_atualizador = Usuario.query.get(self.atualizado_por) if self.atualizado_por else None
-        total_comentarios = db.session.query(db.func.count(Comentario.id)).filter(
-            Comentario.chamado_id == self.id
-        ).scalar() or 0
+        if atualizado_por_nome is None and self.atualizado_por:
+            usuario_atualizador = db.session.get(Usuario, self.atualizado_por)
+            atualizado_por_nome = usuario_atualizador.nome if usuario_atualizador else None
+
+        if total_comentarios is None:
+            total_comentarios = db.session.query(db.func.count(Comentario.id)).filter(
+                Comentario.chamado_id == self.id
+            ).scalar() or 0
 
         return {
             "id": self.id,
@@ -60,7 +64,7 @@ class Chamado(db.Model):
             "usuario_id": self.usuario_id,
             "usuario_nome": self.usuario.nome if self.usuario else None,
             "atualizado_por": self.atualizado_por,
-            "atualizado_por_nome": usuario_atualizador.nome if usuario_atualizador else None,
+            "atualizado_por_nome": atualizado_por_nome,
             "categoria_id": self.categoria_id,
             "categoria_nome": self.categoria.nome if self.categoria else None,
             "anexo_nome": self.anexo_nome,

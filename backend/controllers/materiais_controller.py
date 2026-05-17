@@ -49,5 +49,5 @@ def deletar_material(id):
     mat = Material.query.get(id)
     if not mat:
         raise ValueError("Material não encontrado")
-    db.session.delete(mat)
+    mat.ativo = False
     db.session.commit()

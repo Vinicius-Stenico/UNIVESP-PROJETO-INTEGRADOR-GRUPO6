@@ -1,8 +1,10 @@
 from models.chamado import Chamado
 from models.usuario import Usuario
 from models.categoria import Categoria
+from models.comentario import Comentario
 from controllers.eventos_controller import criar_evento
 from database import db
+from sqlalchemy.orm import selectinload
 from utils.constants import (
     STATUS_ABERTO,
     STATUS_EM_ANDAMENTO,
@@ -29,6 +31,48 @@ from utils.constants import (
 
 def validar_status(status):
     return normalizar_status(status)
+
+
+def _query_chamados_base():
+    return Chamado.query.options(
+        selectinload(Chamado.usuario),
+        selectinload(Chamado.categoria),
+        selectinload(Chamado.responsavel),
+    )
+
+
+def _chamados_to_dict(chamados):
+    if not chamados:
+        return []
+
+    chamado_ids = [chamado.id for chamado in chamados]
+    atualizador_ids = {
+        chamado.atualizado_por
+        for chamado in chamados
+        if chamado.atualizado_por
+    }
+
+    contagens = dict(
+        db.session.query(Comentario.chamado_id, db.func.count(Comentario.id))
+        .filter(Comentario.chamado_id.in_(chamado_ids))
+        .group_by(Comentario.chamado_id)
+        .all()
+    )
+
+    atualizadores = {}
+    if atualizador_ids:
+        atualizadores = {
+            usuario.id: usuario.nome
+            for usuario in Usuario.query.filter(Usuario.id.in_(atualizador_ids)).all()
+        }
+
+    return [
+        chamado.to_dict(
+            total_comentarios=contagens.get(chamado.id, 0),
+            atualizado_por_nome=atualizadores.get(chamado.atualizado_por),
+        )
+        for chamado in chamados
+    ]
 
 def criar_chamado(titulo, descricao, usuario_id=None, categoria_id=None,
                   anexo_path=None, anexo_nome=None, prioridade=None):
@@ -273,31 +317,31 @@ def deletar_chamado(id):
     db.session.commit()
 
 def listar_chamados():
-    return Chamado.query.all()      
+    return _query_chamados_base().all()      
 
 def deletar_todos():
     Chamado.query.delete()
     db.session.commit()
 
 def listar_chamados_recentes():
-    chamados = Chamado.query.order_by(Chamado.data_criacao.desc()).all()
-    return [c.to_dict() for c in chamados]
+    chamados = _query_chamados_base().order_by(Chamado.data_criacao.desc()).all()
+    return _chamados_to_dict(chamados)
 
 def listar_chamados_por_status(status):
-    chamados = Chamado.query.filter_by(status=status).all()
-    return [c.to_dict() for c in chamados]
+    chamados = _query_chamados_base().filter_by(status=status).all()
+    return _chamados_to_dict(chamados)
 
 def listar_chamados_por_usuario(usuario_id):
-    chamados = Chamado.query.filter_by(usuario_id=usuario_id).all()
-    return [c.to_dict() for c in chamados]
+    chamados = _query_chamados_base().filter_by(usuario_id=usuario_id).all()
+    return _chamados_to_dict(chamados)
 
 def buscar_chamados_por_texto(texto):
-    chamados = Chamado.query.filter(
+    chamados = _query_chamados_base().filter(
         Chamado.titulo.ilike(f"%{texto}%") |
         Chamado.descricao.ilike(f"%{texto}%")
     ).all()
 
-    return [c.to_dict() for c in chamados]
+    return _chamados_to_dict(chamados)
 
 def buscar_chamado_por_id(id):
     chamado = Chamado.query.get(id)

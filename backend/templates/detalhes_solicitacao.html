@@ -70,7 +70,10 @@
 
 {% block scripts %}
 <script>
-  const usuario = AppCommon.requireUsuario();
+  (async function () {
+  const usuario = await AppCommon.requireUsuario();
+  if (!usuario) return;
+
   const ehSecretaria = usuario.tipo === 'secretaria' || usuario.tipo === 'admin';
   const id = "{{ chamado_id }}";
 
@@ -314,5 +317,6 @@
   document.getElementById('d-btn-voltar').onclick = () => { window.location.href = '/dashboard'; };
 
   carregar();
+  })();
 </script>
 {% endblock %}

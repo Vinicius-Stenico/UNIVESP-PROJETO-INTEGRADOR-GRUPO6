@@ -43,5 +43,5 @@ def deletar_categoria(id):
     cat = Categoria.query.get(id)
     if not cat:
         raise ValueError("Categoria não encontrada")
-    db.session.delete(cat)
+    cat.ativo = False
     db.session.commit()

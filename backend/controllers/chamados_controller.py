@@ -17,19 +17,21 @@ from models.evento import (
     TIPO_ANEXO,
     TIPO_CANCELAMENTO,
     TIPO_REABERTURA,
+    TIPO_ATRIBUICAO,
 )
 from utils.constants import (
     STATUS_ABERTO,
     STATUS_EM_ANDAMENTO,
     STATUS_CONCLUIDO,
     STATUS_CANCELADO,
+    normalizar_prioridade,
 )
 
 def validar_status(status):
     return normalizar_status(status)
 
 def criar_chamado(titulo, descricao, usuario_id=None, categoria_id=None,
-                  anexo_path=None, anexo_nome=None):
+                  anexo_path=None, anexo_nome=None, prioridade=None):
     usuario = Usuario.query.get(usuario_id) if usuario_id else None
 
     if not usuario:
@@ -38,6 +40,8 @@ def criar_chamado(titulo, descricao, usuario_id=None, categoria_id=None,
     if categoria_id and not Categoria.query.get(categoria_id):
         raise ValueError("Categoria não encontrada")
 
+    prioridade = normalizar_prioridade(prioridade)
+
     chamado = Chamado(
         titulo=titulo,
         descricao=descricao,
@@ -45,7 +49,8 @@ def criar_chamado(titulo, descricao, usuario_id=None, categoria_id=None,
         categoria_id=categoria_id,
         anexo_path=anexo_path,
         anexo_nome=anexo_nome,
-        status=STATUS_ABERTO
+        prioridade = prioridade,
+        status=STATUS_ABERTO,
     )
 
     db.session.add(chamado)
@@ -55,7 +60,7 @@ def criar_chamado(titulo, descricao, usuario_id=None, categoria_id=None,
         chamado_id=chamado.id,
         usuario_id=usuario_id,
         tipo=TIPO_CRIACAO,
-        descricao=f"{usuario.nome} criou a solicitação",
+        descricao=f"{usuario.nome} criou a solicitação com prioridade {prioridade}",
         status_novo=STATUS_ABERTO,
     )
 
@@ -73,7 +78,7 @@ def criar_chamado(titulo, descricao, usuario_id=None, categoria_id=None,
 
 
 def editar_chamado(id, usuario_id, titulo=None, descricao=None,
-                   categoria_id=None, anexo_path=None, anexo_nome=None):
+                   categoria_id=None, anexo_path=None, anexo_nome=None, prioridade=None):
     alteracoes = []
     
     chamado = Chamado.query.get(id)
@@ -124,6 +129,15 @@ def editar_chamado(id, usuario_id, titulo=None, descricao=None,
             alteracoes.append("Descrição alterada")
             chamado.descricao = descricao
 
+    if prioridade is not None:
+        nova_prioridade = normalizar_prioridade(prioridade)
+        
+        if chamado.prioridade != nova_prioridade:
+            alteracoes.append(
+                f"Prioridade alterada de '{chamado.prioridade}' para '{nova_prioridade}'"
+            )
+            chamado.prioridade = nova_prioridade
+
     if anexo_path is not None:
         chamado.anexo_path = anexo_path
         chamado.anexo_nome = anexo_nome
@@ -147,6 +161,59 @@ def editar_chamado(id, usuario_id, titulo=None, descricao=None,
     db.session.commit()
 
     return chamado
+
+def assumir_chamado(id, usuario_id):
+    chamado = Chamado.query.get(id)
+
+    if not chamado:
+        raise ValueError("Chamado não encontrado")
+    
+    usuario = Usuario.query.get(usuario_id)
+
+    if not usuario:
+        raise ValueError("Usuário não encontrado")
+    
+    if usuario.tipo not in ("admin", "secretaria"):
+        raise ValueError("Apenas secretaria ou admin podem assumir chamados")
+    
+    if chamado.status in (STATUS_CANCELADO, STATUS_CONCLUIDO):
+        raise ValueError("Solicitação encerrada - não pode ser assumida")
+    
+    responsavel_anterior = chamado.responsavel.nome if chamado.responsavel else None
+
+    chamado.responsavel_id = usuario.id
+    chamado.atualizado_por = usuario.id
+
+    if responsavel_anterior:
+        descricao = (
+            f"{usuario.nome} assumiu o chamado. "
+            f"Responsável anterior: {responsavel_anterior}"
+        )
+    else:
+        descricao = f"{usuario.nome} assumiu o chamado"
+
+    criar_evento(
+        chamado_id=chamado.id,
+        usuario_id=usuario.id,
+        tipo=TIPO_ATRIBUICAO,
+        descricao=descricao,
+    )
+
+    if chamado.status == STATUS_ABERTO:
+        status_anterior = chamado.status
+        chamado.status = STATUS_EM_ANDAMENTO
+
+        criar_evento(
+            chamado_id=chamado.id,
+            usuario_id=usuario.id,
+            tipo=TIPO_STATUS,
+            descricao=f"{usuario.nome} alterou o status de '{status_anterior}' para '{STATUS_EM_ANDAMENTO}'",
+            status_novo=STATUS_EM_ANDAMENTO,
+        )
+
+    db.session.commit()
+
+    return chamado.to_dict()
 
 def atualizar_status(id, novo_status, usuario_id):
     novo_status = validar_status(novo_status)

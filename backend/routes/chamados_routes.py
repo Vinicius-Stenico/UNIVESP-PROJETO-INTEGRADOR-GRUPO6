@@ -11,6 +11,7 @@ from controllers.chamados_controller import (
     listar_chamados_por_status,
     listar_chamados_por_usuario,
     buscar_chamados_por_texto,
+    assumir_chamado,
 )
 from models.chamado import Chamado
 
@@ -67,6 +68,7 @@ def post_chamado():
             categoria_id=dados.get('categoria_id'),
             anexo_path=anexo_path,
             anexo_nome=anexo_nome,
+            prioridade=dados.get('prioridade'),
         )
 
         return jsonify({
@@ -129,6 +131,7 @@ def put_chamado(id):
             categoria_id=dados.get('categoria_id'),
             anexo_path=novo_anexo_path,
             anexo_nome=novo_anexo_nome,
+            prioridade=dados.get('prioridade'),
         )
 
         # Se enviou anexo novo e havia anexo antigo, remove o antigo.
@@ -208,3 +211,15 @@ def get_anexo(id):
         as_attachment=baixar,
         download_name=chamado.anexo_nome or chamado.anexo_path,
     )
+
+@chamados_bp.route('/api/chamados/<int:id>/assumir', methods=['PUT'])
+@login_required
+def put_assumir_chamado(id):
+    try:
+        usuario = usuario_logado()
+        chamado = assumir_chamado(id, usuario.id)
+
+        return jsonify(chamado), 200
+    
+    except ValueError as e:
+        return jsonify({"erro": str(e)}), 400

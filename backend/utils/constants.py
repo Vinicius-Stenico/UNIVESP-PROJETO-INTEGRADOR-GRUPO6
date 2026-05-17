@@ -50,3 +50,40 @@ def normalizar_status(status):
         raise ValueError("Status inválido")
     
     return mapa[status_limpo]
+
+PRIORIDADE_BAIXA = "Baixa"
+PRIORIDADE_NORMAL = "Normal"
+PRIORIDADE_ALTA = "Alta"
+PRIORIDADE_URGENTE = "Urgente"
+
+PRIORIDADES_VALIDAS = [
+    PRIORIDADE_BAIXA,
+    PRIORIDADE_NORMAL,
+    PRIORIDADE_ALTA,
+    PRIORIDADE_URGENTE,
+]
+
+def normalizar_prioridade(prioridade):
+    """
+    Padroniza a prioridade recebida.
+    Se nada for enviado, usa Normal.
+    """
+
+    if not prioridade:
+        return PRIORIDADE_NORMAL
+    
+    prioridade_limpa = prioridade.strip().lower()
+
+    mapa = {
+        "baixa": PRIORIDADE_BAIXA,
+        "normal": PRIORIDADE_NORMAL,
+        "media": PRIORIDADE_NORMAL,
+        "média": PRIORIDADE_NORMAL,
+        "alta": PRIORIDADE_ALTA,
+        "urgente": PRIORIDADE_URGENTE,
+    }
+
+    if prioridade_limpa not in mapa:
+        raise ValueError("Prioridade inválida")
+    
+    return mapa[prioridade_limpa]

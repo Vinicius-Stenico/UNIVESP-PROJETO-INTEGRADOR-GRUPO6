@@ -20,6 +20,13 @@
       <option value="">Selecione a Categoria</option>
     </select>
 
+    <select class="form-select rounded-pill mb-2" id="prioridade">
+      <option value="Normal">Prioridade Normal</option>
+      <option value="Baixa">Baixa</option>
+      <option value="Alta">Alta</option>
+      <option value="Urgente">Urgente</option>
+    </select>
+
     <select class="form-select rounded-pill mb-2" id="itens">
       <option value="">Selecione o(s) item(ns)</option>
     </select>
@@ -198,6 +205,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         await carregarMateriais(null);
       }
 
+      document.getElementById('prioridade').value = c.prioridade || 'Normal';
+
       const parsed = parseItensDescricao(c.descricao);
 
       document.getElementById('descricao').value = parsed.resto;
@@ -294,7 +303,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     fd.append('titulo', titulo);
     fd.append('descricao', descricao);
-
+    fd.append('categoria_id', selCategoria.value || '');
+    fd.append('prioridade', document.getElementById('prioridade').value || 'Normal');
+    
     if (categoriaId) {
       fd.append('categoria_id', categoriaId);
     }

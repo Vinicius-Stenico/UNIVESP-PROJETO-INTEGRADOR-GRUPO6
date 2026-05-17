@@ -20,6 +20,13 @@
       <option value="">Selecione a Categoria</option>
     </select>
 
+    <select class="form-select rounded-pill mb-2" id="prioridade">
+      <option value="Normal">Prioridade Normal</option>
+      <option value="Baixa">Baixa</option>
+      <option value="Alta">Alta</option>
+      <option value="Urgente">Urgente</option>
+    </select>
+
     <select class="form-select rounded-pill mb-2" id="itens">
       <option value="">Selecione o(s) item(ns)</option>
     </select>
@@ -33,6 +40,7 @@
       </label>
       <span id="nome-arquivo">Nenhum arquivo</span>
     </div>
+
     <div id="anexo-atual" class="small mb-3" style="display:none;">
       <span class="text-muted">Anexo atual:</span>
       <a id="anexo-link" href="#" target="_blank">📎</a>
@@ -44,6 +52,7 @@
       <button type="button" class="btn btn-outline-secondary rounded-pill" id="cancelar-sol" style="display:none;">Cancelar solicitação</button>
       <button type="button" class="btn btn-figma" id="cancelar">Voltar</button>
     </div>
+
     <div class="error-msg" id="erro"></div>
   </form>
 </div>
@@ -55,164 +64,283 @@
 
 {% block scripts %}
 <script>
-  const usuario = AppCommon.requireUsuario();
+document.addEventListener('DOMContentLoaded', async () => {
+  const usuario = await AppCommon.requireUsuario();
+
+  if (!usuario) {
+    return;
+  }
+
   document.getElementById('ola').textContent = `Olá, ${usuario.nome}!`;
 
   const editandoId = new URLSearchParams(window.location.search).get('id');
+
   const tabForm = document.getElementById('tab-form');
-  tabForm.textContent = editandoId ? 'Editar Solicitação' : 'Nova Solicitação';
-
-  document.getElementById('tab-lista').onclick = () => { window.location.href = '/dashboard'; };
-  document.getElementById('cancelar').onclick = () => { window.location.href = '/dashboard'; };
-  document.getElementById('logout').onclick = () => AppCommon.logout('/login');
-
-  document.getElementById('arquivo').addEventListener('change', (e) => {
-    const f = e.target.files[0];
-    document.getElementById('nome-arquivo').textContent = f ? f.name : 'Nenhum arquivo';
-  });
-
+  const tabLista = document.getElementById('tab-lista');
+  const btnCancelar = document.getElementById('cancelar');
+  const btnLogout = document.getElementById('logout');
+  const arquivoInput = document.getElementById('arquivo');
+  const nomeArquivo = document.getElementById('nome-arquivo');
   const selCategoria = document.getElementById('categoria');
   const selItens = document.getElementById('itens');
+  const form = document.getElementById('form-nova');
+  const erro = document.getElementById('erro');
+  const enviar = document.getElementById('enviar');
+
+  tabForm.textContent = editandoId ? 'Editar Solicitação' : 'Nova Solicitação';
+
+  tabLista.onclick = () => {
+    window.location.href = '/dashboard';
+  };
+
+  btnCancelar.onclick = () => {
+    window.location.href = '/dashboard';
+  };
+
+  btnLogout.onclick = () => AppCommon.logout('/login');
+
+  arquivoInput.addEventListener('change', (e) => {
+    const f = e.target.files[0];
+    nomeArquivo.textContent = f ? f.name : 'Nenhum arquivo';
+  });
 
   async function carregarCategorias() {
     try {
       const cats = await AppCommon.api('GET', '/api/categorias');
+
       cats.forEach(c => {
         const opt = document.createElement('option');
-        opt.value = c.id; opt.textContent = c.nome;
+        opt.value = c.id;
+        opt.textContent = c.nome;
         selCategoria.appendChild(opt);
       });
-    } catch (e) { console.error(e); }
+
+    } catch (e) {
+      console.error('Erro ao carregar categorias:', e);
+    }
   }
 
   async function carregarMateriais(catId) {
     selItens.innerHTML = '<option value="">Selecione o(s) item(ns)</option>';
+
     const url = catId ? `/api/materiais?categoria_id=${catId}` : '/api/materiais';
+
     try {
       const mats = await AppCommon.api('GET', url);
+
       mats.forEach(m => {
         const opt = document.createElement('option');
+
         opt.value = m.id;
         opt.textContent = m.unidade ? `${m.nome} (${m.unidade})` : m.nome;
         opt.dataset.nome = m.nome;
         opt.dataset.unidade = m.unidade || '';
+
         selItens.appendChild(opt);
       });
-    } catch (e) { console.error(e); }
+
+    } catch (e) {
+      console.error('Erro ao carregar materiais:', e);
+    }
   }
 
-  selCategoria.addEventListener('change', () => carregarMateriais(selCategoria.value || null));
+  selCategoria.addEventListener('change', () => {
+    carregarMateriais(selCategoria.value || null);
+  });
 
   function parseItensDescricao(desc) {
-    if (!desc) return { itens: '', resto: '' };
+    if (!desc) {
+      return { itens: '', resto: '' };
+    }
+
     const linhas = desc.split('\n');
     const restante = [];
     let itens = '';
+
     linhas.forEach(l => {
       const m = l.match(/^Itens?:\s*(.+)$/i);
-      if (m && !itens) itens = m[1].trim();
-      else restante.push(l);
+
+      if (m && !itens) {
+        itens = m[1].trim();
+      } else {
+        restante.push(l);
+      }
     });
-    return { itens, resto: restante.join('\n').trim() };
+
+    return {
+      itens,
+      resto: restante.join('\n').trim()
+    };
   }
 
   async function carregarChamadoExistente() {
-    if (!editandoId) return;
+    if (!editandoId) {
+      return;
+    }
+
     try {
       const c = await AppCommon.api('GET', `/api/chamados/${editandoId}`);
-      if (c.usuario_id !== usuario.id && usuario.tipo !== 'admin' && usuario.tipo !== 'secretaria') {
+
+      const ehDono = c.usuario_id === usuario.id;
+      const ehSecretariaOuAdmin = usuario.tipo === 'admin' || usuario.tipo === 'secretaria';
+
+      if (!ehDono && !ehSecretariaOuAdmin) {
         alert('Você não pode editar essa solicitação.');
         window.location.href = '/dashboard';
         return;
       }
-      if (c.status !== 'Aberto' && (usuario.tipo !== 'admin' && usuario.tipo !== 'secretaria')) {
+
+      if (c.status !== 'Aberto' && !ehSecretariaOuAdmin) {
         alert('Esta solicitação não pode mais ser editada.');
         window.location.href = `/detalhes/${editandoId}`;
         return;
       }
+
       document.getElementById('titulo').value = c.titulo;
-      if (c.categoria_id) selCategoria.value = String(c.categoria_id);
+
+      if (c.categoria_id) {
+        selCategoria.value = String(c.categoria_id);
+        await carregarMateriais(c.categoria_id);
+      } else {
+        await carregarMateriais(null);
+      }
+
+      document.getElementById('prioridade').value = c.prioridade || 'Normal';
+
       const parsed = parseItensDescricao(c.descricao);
+
       document.getElementById('descricao').value = parsed.resto;
+
       if (parsed.itens) {
-        // tentar localizar o item no select; se não achar, deixa em branco mesmo
-        await carregarMateriais(c.categoria_id || null);
         Array.from(selItens.options).forEach(opt => {
-          const txt = opt.dataset.nome ? (opt.dataset.unidade ? `${opt.dataset.nome} (${opt.dataset.unidade})` : opt.dataset.nome) : '';
-          if (txt === parsed.itens) selItens.value = opt.value;
+          const txt = opt.dataset.nome
+            ? (opt.dataset.unidade ? `${opt.dataset.nome} (${opt.dataset.unidade})` : opt.dataset.nome)
+            : '';
+
+          if (txt === parsed.itens) {
+            selItens.value = opt.value;
+          }
         });
       }
+
       if (c.tem_anexo) {
         document.getElementById('anexo-atual').style.display = '';
+
         const link = document.getElementById('anexo-link');
         link.href = `/api/chamados/${c.id}/anexo`;
         link.textContent = '📎 ' + (c.anexo_nome || 'baixar anexo');
       }
 
-      // Botão de cancelar a solicitação só aparece se ela está ativa
       const ativo = c.status === 'Aberto' || c.status === 'Em andamento';
       const cancelarSolBtn = document.getElementById('cancelar-sol');
+
       if (ativo) {
         cancelarSolBtn.style.display = '';
+
         cancelarSolBtn.onclick = async () => {
-          if (!confirm('Cancelar esta solicitação? Essa ação não pode ser desfeita.')) return;
+          if (!confirm('Cancelar esta solicitação? Essa ação não pode ser desfeita.')) {
+            return;
+          }
+
           try {
-            await AppCommon.api('PUT', `/api/chamados/${c.id}/status`, { status: 'Cancelado', usuario_id: usuario.id });
+            await AppCommon.api('PUT', `/api/chamados/${c.id}/status`, {
+              status: 'Cancelado'
+            });
+
             alert('Solicitação cancelada.');
             window.location.href = '/dashboard';
+
           } catch (e) {
-            document.getElementById('erro').textContent = e.message;
+            erro.textContent = e.message;
           }
         };
       }
+
     } catch (e) {
-      document.getElementById('erro').textContent = e.message;
+      erro.textContent = e.message;
     }
   }
 
-  (async function init() {
+  async function init() {
     await carregarCategorias();
-    if (!editandoId) await carregarMateriais(null);
-    await carregarChamadoExistente();
-  })();
 
-  document.getElementById('form-nova').addEventListener('submit', async (e) => {
+    if (!editandoId) {
+      await carregarMateriais(null);
+    }
+
+    await carregarChamadoExistente();
+  }
+
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const erro = document.getElementById('erro');
+
     erro.textContent = '';
-    const enviar = document.getElementById('enviar');
     enviar.disabled = true;
 
     const titulo = document.getElementById('titulo').value.trim();
     const categoriaId = parseInt(selCategoria.value) || '';
     const itemOpt = selItens.selectedOptions[0];
-    const itemNome = itemOpt && itemOpt.value ? (itemOpt.dataset.nome + (itemOpt.dataset.unidade ? ` (${itemOpt.dataset.unidade})` : '')) : '';
+
+    const itemNome = itemOpt && itemOpt.value
+      ? itemOpt.dataset.nome + (itemOpt.dataset.unidade ? ` (${itemOpt.dataset.unidade})` : '')
+      : '';
+
     const descBase = document.getElementById('descricao').value.trim();
 
     const partes = [];
-    if (itemNome) partes.push(`Item: ${itemNome}`);
-    if (descBase) partes.push(descBase);
+
+    if (itemNome) {
+      partes.push(`Item: ${itemNome}`);
+    }
+
+    if (descBase) {
+      partes.push(descBase);
+    }
+
     const descricao = partes.join('\n') || '(sem descrição)';
 
     const fd = new FormData();
+
     fd.append('titulo', titulo);
     fd.append('descricao', descricao);
-    fd.append('usuario_id', usuario.id);
-    if (categoriaId) fd.append('categoria_id', categoriaId);
-    const arquivo = document.getElementById('arquivo').files[0];
-    if (arquivo) fd.append('anexo', arquivo);
+    fd.append('categoria_id', selCategoria.value || '');
+    fd.append('prioridade', document.getElementById('prioridade').value || 'Normal');
+    
+    if (categoriaId) {
+      fd.append('categoria_id', categoriaId);
+    }
+
+    const arquivo = arquivoInput.files[0];
+
+    if (arquivo) {
+      fd.append('anexo', arquivo);
+    }
 
     try {
       const url = editandoId ? `/api/chamados/${editandoId}` : '/api/chamados';
       const method = editandoId ? 'PUT' : 'POST';
-      const r = await fetch(url, { method, body: fd });
+
+      const r = await fetch(url, {
+        method,
+        body: fd,
+        credentials: 'same-origin'
+      });
+
       const data = await r.json();
-      if (!r.ok) throw new Error(data.erro || 'Erro');
+
+      if (!r.ok) {
+        throw new Error(data.erro || 'Erro');
+      }
+
       window.location.href = editandoId ? `/detalhes/${editandoId}` : '/dashboard';
+
     } catch (e) {
       erro.textContent = e.message;
       enviar.disabled = false;
     }
   });
+
+  init();
+});
 </script>
 {% endblock %}

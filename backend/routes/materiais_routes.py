@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request
+from utils.auth import login_required, admin_required
 from controllers.materiais_controller import (
     listar_materiais,
     criar_material,
@@ -10,6 +11,7 @@ materiais_bp = Blueprint('materiais', __name__)
 
 
 @materiais_bp.route('/api/materiais', methods=['GET'])
+@login_required
 def get_materiais():
     inclui_inativos = request.args.get('todos') == '1'
     cat = request.args.get('categoria_id', type=int)
@@ -17,6 +19,7 @@ def get_materiais():
 
 
 @materiais_bp.route('/api/materiais', methods=['POST'])
+@admin_required
 def post_material():
     dados = request.get_json() or {}
     try:
@@ -31,6 +34,7 @@ def post_material():
 
 
 @materiais_bp.route('/api/materiais/<int:id>', methods=['PUT'])
+@admin_required
 def put_material(id):
     dados = request.get_json() or {}
     try:
@@ -47,6 +51,7 @@ def put_material(id):
 
 
 @materiais_bp.route('/api/materiais/<int:id>', methods=['DELETE'])
+@admin_required
 def delete_material(id):
     try:
         deletar_material(id)

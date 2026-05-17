@@ -19,6 +19,12 @@ class Chamado(db.Model):
     categoria_id = db.Column(db.Integer, db.ForeignKey("categorias.id"), nullable=True)
     anexo_path = db.Column(db.String(255), nullable=True)
     anexo_nome = db.Column(db.String(255), nullable=True)
+    prioridade = db.Column(db.String(20), default="Normal", nullable=False)
+    responsavel_id = db.Column(
+        db.Integer,
+        db.ForeignKey("usuarios.id"),
+        nullable=True
+    )
 
     usuario = db.relationship(
         "Usuario",
@@ -26,6 +32,11 @@ class Chamado(db.Model):
         back_populates="chamados"
     )
     categoria = db.relationship("Categoria")
+
+    responsavel = db.relationship(
+        "Usuario",
+        foreign_keys=[responsavel_id]
+    )
 
     data_criacao = db.Column(db.DateTime, default=horario_brasilia)
     data_atualizacao = db.Column(
@@ -56,5 +67,8 @@ class Chamado(db.Model):
             "tem_anexo": bool(self.anexo_path),
             "total_comentarios": int(total_comentarios),
             "data_criacao": self.data_criacao.strftime("%d/%m/%Y %H:%M") if self.data_criacao else None,
-            "data_atualizacao": self.data_atualizacao.strftime("%d/%m/%Y %H:%M") if self.data_atualizacao else None
+            "data_atualizacao": self.data_atualizacao.strftime("%d/%m/%Y %H:%M") if self.data_atualizacao else None,
+            "prioridade": self.prioridade,
+            "responsavel_id": self.responsavel_id,
+            "responsavel_nome": self.responsavel.nome if self.responsavel else None,
         }

@@ -11,6 +11,8 @@
     <div id="d-data"></div>
     <div id="d-categoria"></div>
     <div id="d-status"></div>
+    <div id="d-prioridade"></div>
+    <div id="d-responsavel"></div>
   </div>
 
   <div id="d-itens-bloco" style="display:none;" class="detail-card">
@@ -21,9 +23,24 @@
   <div class="detail-card" id="d-descricao">…</div>
 
   <div id="d-anexo-bloco" style="display:none;" class="mb-3">
-    <a id="d-anexo-link" href="#" target="_blank" class="text-decoration-none">📎 <span id="d-anexo-nome">baixar anexo</span></a>
-  </div>
+    <div class="detail-card">
+      <div class="fw-bold mb-2">Anexo</div>
 
+      <div class="mb-2">
+        📎 <span id="d-anexo-nome">arquivo</span>
+      </div>
+
+      <div class="d-flex gap-2 flex-wrap">
+        <a id="d-anexo-link" href="#" target="_blank" class="btn btn-figma-outline btn-sm">
+          Visualizar
+        </a>
+
+        <a id="d-anexo-download" href="#" class="btn btn-figma btn-sm">
+          Baixar
+        </a>
+      </div>
+    </div>
+  </div>
   <h5 class="mb-2">Histórico</h5>
   <div class="hist-block" id="d-historico"></div>
 
@@ -72,7 +89,7 @@
       montarAcoes();
 
       // Status finalizado: tudo read-only (sem comentário, sem ações)
-      const eFinalizado = chamado.status === 'Cancelado' || chamado.status === 'Resolvido';
+      const eFinalizado = chamado.status === 'Cancelado' || chamado.status === 'Concluído';
       document.getElementById('d-comentario-wrap').style.display = eFinalizado ? 'none' : '';
     } catch (e) {
       document.getElementById('d-erro').textContent = e.message;
@@ -93,6 +110,13 @@
     return out;
   }
 
+  function classePrioridade(prioridade) {
+    if (prioridade === 'Urgente') return 'prioridade-pill prioridade-urgente';
+    if (prioridade === 'Alta') return 'prioridade-pill prioridade-alta';
+    if (prioridade === 'Baixa') return 'prioridade-pill prioridade-baixa';
+    return 'prioridade-pill prioridade-normal';
+  }
+
   function renderChamado() {
     document.getElementById('d-id').textContent = chamado.id;
     document.getElementById('d-titulo').textContent = chamado.titulo;
@@ -100,6 +124,12 @@
     if (chamado.categoria_nome) {
       document.getElementById('d-categoria').innerHTML = `<strong>Categoria:</strong> ${AppCommon.escapeHtml(chamado.categoria_nome)}`;
     }
+    const prioridade = chamado.prioridade || 'Normal';
+    document.getElementById('d-prioridade').innerHTML =
+      `<strong>Prioridade:</strong> <span class="${classePrioridade(prioridade)}">${AppCommon.escapeHtml(prioridade)}</span>`;
+
+    document.getElementById('d-responsavel').innerHTML =
+      `<strong>Responsável:</strong> ${AppCommon.escapeHtml(chamado.responsavel_nome || 'Ainda não assumido')}`;
     document.getElementById('d-status').innerHTML = `<strong>Status:</strong> <span class="tag-status">${AppCommon.escapeHtml(chamado.status)}</span>`;
     if (ehSecretaria) {
       document.getElementById('d-solicitante').innerHTML = `<strong>Solicitante:</strong> ${AppCommon.escapeHtml(chamado.usuario_nome || '-')}`;
@@ -113,18 +143,50 @@
 
     if (chamado.tem_anexo) {
       document.getElementById('d-anexo-bloco').style.display = '';
-      const link = document.getElementById('d-anexo-link');
-      link.href = `/api/chamados/${chamado.id}/anexo`;
-      document.getElementById('d-anexo-nome').textContent = chamado.anexo_nome || 'baixar anexo';
+
+      const linkVisualizar = document.getElementById('d-anexo-link');
+      const linkDownload = document.getElementById('d-anexo-download');
+
+      linkVisualizar.href = `/api/chamados/${chamado.id}/anexo`;
+      linkDownload.href = `/api/chamados/${chamado.id}/anexo?download=1`;
+
+      document.getElementById('d-anexo-nome').textContent = chamado.anexo_nome || 'arquivo anexado';
     }
+  }
+
+  function iconeEvento(tipo) {
+    const mapa = {
+      criacao: '📝',
+      status: '🔄',
+      comentario: '💬',
+      edicao: '✏️',
+      anexo: '📎',
+      cancelamento: '🚫',
+      reabertura: '🔁'
+    };
+
+    return mapa[tipo] || '•';
   }
 
   function renderHistorico(eventos) {
     const el = document.getElementById('d-historico');
-    if (!eventos.length) { el.innerHTML = '<div class="hist-line">Sem eventos.</div>'; return; }
+
+    if (!eventos.length) {
+      el.innerHTML = '<div class="hist-line">Sem eventos.</div>';
+      return;
+    }
+
     el.innerHTML = eventos.map(e => {
-      const tag = e.status_novo ? ` <span class="tag-status">${AppCommon.escapeHtml(e.status_novo)}</span>` : '';
-      return `<div class="hist-line">${AppCommon.escapeHtml(AppCommon.fmtDataCurta(e.data_criacao))}: ${AppCommon.escapeHtml(e.descricao)}${tag}</div>`;
+      const tag = e.status_novo
+        ? ` <span class="tag-status">${AppCommon.escapeHtml(e.status_novo)}</span>`
+        : '';
+
+      return `
+        <div class="hist-line">
+          <strong>${iconeEvento(e.tipo)} ${AppCommon.escapeHtml(AppCommon.fmtDataCurta(e.data_criacao))}</strong><br>
+          ${AppCommon.escapeHtml(e.descricao)}${tag}
+        </div>
+      `;
     }).join('');
   }
 
@@ -152,17 +214,32 @@
     btnCanc.onclick = null;
 
     const eAtivo = chamado.status === 'Aberto' || chamado.status === 'Em andamento';
-    if (!eAtivo) return; // status Cancelado ou Resolvido → sem ações
+    if (!eAtivo) return; // status Cancelado ou Concluído → sem ações
 
     const eDono = chamado.usuario_id === usuario.id;
 
     if (ehSecretaria) {
-      btnPri.textContent = 'Concluir';
-      btnPri.onclick = () => mudarStatus('Resolvido');
-      btnPri.style.display = '';
+      if (chamado.status === 'Aberto' && !chamado.responsavel_id) {
+        btnPri.textContent = 'Assumir';
+        btnPri.onclick = () => assumirChamado();
+        btnPri.style.display = '';
+
+      } else if (chamado.status === 'Aberto') {
+        btnPri.textContent = 'Iniciar atendimento';
+        btnPri.onclick = () => mudarStatus('Em andamento');
+        btnPri.style.display = '';
+
+      } else if (chamado.status === 'Em andamento') {
+        btnPri.textContent = 'Concluir';
+        btnPri.onclick = () => mudarStatus('Concluído');
+        btnPri.style.display = '';
+      }
+
       btnCanc.textContent = 'Cancelar solicitação';
       btnCanc.onclick = () => mudarStatus('Cancelado');
       btnCanc.style.display = '';
+
+      acoes.style.display = '';
     } else if (eDono) {
       // dono pode cancelar a própria solicitação ativa, mas não edita por aqui
       btnCanc.textContent = 'Cancelar solicitação';
@@ -175,17 +252,39 @@
     }
   }
 
+  async function assumirChamado() {
+    document.getElementById('d-erro').textContent = '';
+
+    try {
+      chamado = await AppCommon.api('PUT', `/api/chamados/${id}/assumir`);
+
+      renderChamado();
+      montarAcoes();
+
+      const [eventos, comentarios] = await Promise.all([
+        AppCommon.api('GET', `/api/chamados/${id}/eventos`),
+        AppCommon.api('GET', `/api/chamados/${id}/comentarios`),
+      ]);
+
+      renderHistorico(eventos);
+      renderComentarios(comentarios);
+
+    } catch (e) {
+      document.getElementById('d-erro').textContent = e.message;
+    }
+  }
+
   async function mudarStatus(novo) {
     document.getElementById('d-erro').textContent = '';
     const confirmacoes = {
       'Cancelado': 'Cancelar esta solicitação? Essa ação não pode ser desfeita.',
-      'Resolvido': 'Concluir esta solicitação?',
+      'Concluído': 'Concluir esta solicitação?',
     };
     if (confirmacoes[novo] && !confirm(confirmacoes[novo])) return;
 
     const sucessos = {
       'Cancelado': 'Solicitação cancelada.',
-      'Resolvido': 'Solicitação concluída.',
+      'Concluído': 'Solicitação concluída.',
       'Em andamento': 'Solicitação atualizada para Em andamento.',
     };
     try {

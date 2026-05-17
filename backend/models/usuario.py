@@ -8,6 +8,7 @@ class Usuario(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     senha = db.Column(db.String(255), nullable=False)
     tipo = db.Column(db.String(20), nullable=False, default="professor")
+    ativo = db.Column(db.Boolean, default=True, nullable=False)
 
     chamados = db.relationship(
         "Chamado",
@@ -20,5 +21,6 @@ class Usuario(db.Model):
             "id": self.id,
             "nome": self.nome,
             "email": self.email,
-            "tipo": self.tipo
+            "tipo": self.tipo,
+            "ativo": self.ativo,
         }

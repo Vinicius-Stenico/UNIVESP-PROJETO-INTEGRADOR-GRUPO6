@@ -1,3 +1,4 @@
+/* Base */
 :root {
   --bg-cream: #F7F8F0;
   --bg-blue: #7AAACE;
@@ -42,6 +43,7 @@ html, body {
   margin-top: 4px;
 }
 
+/* Botões e formulários */
 .btn-figma {
   background: var(--primary);
   color: #fff;
@@ -73,6 +75,15 @@ html, body {
   box-shadow: 0 0 0 0.15rem rgba(123,151,194,0.15);
 }
 
+button:focus-visible,
+a:focus-visible,
+.form-control:focus-visible,
+.form-select:focus-visible {
+  outline: 3px solid rgba(48, 89, 128, 0.55);
+  outline-offset: 2px;
+}
+
+/* Navegação */
 .tab-figma {
   background: var(--bg-cream);
   border: none;
@@ -98,6 +109,7 @@ html, body {
   background: var(--bg-cream);
 }
 
+/* Áreas e cards */
 .dashboard-area {
   background: var(--bg-blue);
   flex: 1;
@@ -141,6 +153,34 @@ html, body {
   font-size: 1rem;
 }
 
+.empty-state {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 120px;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.empty-state i {
+  color: var(--title-blue);
+  font-size: 1.8rem;
+}
+
+.empty-state strong {
+  color: var(--text);
+}
+
+.empty-state span {
+  font-size: 0.9rem;
+}
+
 .app-footer {
   background: var(--bg-blue);
   text-align: right;
@@ -155,6 +195,7 @@ html, body {
   cursor: pointer;
 }
 
+/* Detalhes */
 .detail-area {
   background: var(--bg-cream);
   flex: 1;
@@ -192,6 +233,7 @@ html, body {
   font-size: 0.78rem;
 }
 
+/* Status, prioridades e metadados */
 .status-pill {
   display: inline-block;
   padding: 3px 14px;
@@ -216,6 +258,7 @@ html, body {
   color: #6b6b6b;
 }
 
+/* Administração e listas */
 .admin-link {
   text-align: right;
   padding: 8px 16px 0;
@@ -271,6 +314,58 @@ html, body {
 .lista-data { margin-left: auto; }
 .lista-corpo { color: var(--text); word-break: break-word; line-height: 1.4; }
 
+.painel-resumo {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 12px;
+  color: var(--text-muted);
+  display: flex;
+  font-size: 0.82rem;
+  font-weight: 700;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  text-transform: uppercase;
+}
+
+.card-operacional {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.operacional-head {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.operacional-title {
+  flex: 1;
+  font-weight: 700;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.operacional-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.operacional-grid span {
+  color: var(--text);
+  font-size: 0.82rem;
+  min-width: 0;
+}
+
+.operacional-grid strong {
+  color: var(--text-muted);
+  display: block;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
 .acoes-vert {
   display: flex;
   flex-direction: column;
@@ -290,12 +385,43 @@ html, body {
 .btn-link-mini.danger { color: #c0392b; }
 .btn-link-mini:hover { text-decoration: underline; }
 
+/* Mensagens e feedback */
 .error-msg {
   color: #c0392b;
   text-align: center;
   font-size: 0.85rem;
   margin-top: 8px;
   min-height: 18px;
+}
+
+.success-msg,
+.info-msg {
+  text-align: center;
+  font-size: 0.85rem;
+  margin-top: 8px;
+  min-height: 18px;
+}
+
+.success-msg {
+  color: #2f6b35;
+}
+
+.info-msg {
+  color: #305980;
+}
+
+.btn-danger-soft {
+  color: #842029;
+  background: #f8d7da;
+  border: 1px solid #f1aeb5;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.btn-danger-soft:hover {
+  color: #842029;
+  background: #f1b6bd;
+  border-color: #e99ca6;
 }
 
 .prioridade-pill {
@@ -346,4 +472,66 @@ html, body {
   border-radius: 999px;
   padding: 3px 10px;
   font-weight: 600;
+}
+
+/* Formulário de solicitação */
+.request-preview {
+  background: #f7f8f0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+}
+
+.preview-title {
+  color: var(--title-blue);
+  font-size: 0.78rem;
+  font-weight: 800;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.preview-line {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+/* Responsividade */
+@media (min-width: 900px) {
+  .app-shell {
+    max-width: 960px;
+  }
+
+  .dashboard-area,
+  .detail-area {
+    padding: 24px;
+  }
+
+  .dashboard-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    align-content: start;
+    gap: 16px;
+  }
+
+  .dashboard-list .card-figma {
+    margin-bottom: 0;
+  }
+
+  .dashboard-list .empty-msg {
+    grid-column: 1 / -1;
+  }
+
+  .dashboard-list .empty-state,
+  .dashboard-list .painel-resumo {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 520px) {
+  .operacional-grid {
+    grid-template-columns: 1fr;
+  }
 }

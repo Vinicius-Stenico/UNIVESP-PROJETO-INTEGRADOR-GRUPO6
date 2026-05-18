@@ -4,54 +4,38 @@
 {% block content %}
 <div class="d-flex flex-column justify-content-center px-4 py-5" style="min-height: 100vh;">
   <h2 class="text-center mb-5" style="color: var(--title-blue); font-weight: 700;">
-    🔐 Sistema de Solicitações Escolares
+    <i class="bi bi-lock-fill me-2" aria-hidden="true"></i>Sistema de Solicitações Escolares
   </h2>
 
   <form id="login-form" class="mx-auto" style="max-width: 320px; width: 100%;">
     <div class="input-group mb-3 input-pill">
-      <span class="input-group-text bg-white border-end-0 rounded-start-pill">👤</span>
+      <span class="input-group-text bg-white border-end-0 rounded-start-pill">
+        <i class="bi bi-person" aria-hidden="true"></i>
+      </span>
+      <label class="visually-hidden" for="email">Usuário</label>
       <input type="email" class="form-control border-start-0 rounded-end-pill" id="email" placeholder="Usuário" autocomplete="username" required>
     </div>
     <div class="input-group mb-4 input-pill">
-      <span class="input-group-text bg-white border-end-0 rounded-start-pill">🔒</span>
+      <span class="input-group-text bg-white border-end-0 rounded-start-pill">
+        <i class="bi bi-key" aria-hidden="true"></i>
+      </span>
+      <label class="visually-hidden" for="senha">Senha</label>
       <input type="password" class="form-control border-start-0 rounded-end-pill" id="senha" placeholder="Senha" autocomplete="current-password" required>
     </div>
     <div class="text-center">
       <button type="submit" class="btn btn-figma px-5" id="entrar-btn">Entrar</button>
     </div>
-    <div class="error-msg" id="erro"></div>
+    <div class="error-msg" id="erro" aria-live="polite"></div>
   </form>
 
   <div class="text-center mt-4">
-    <a href="#" class="d-block text-dark fw-bold mb-2 text-decoration-none" onclick="alert('Funcionalidade não implementada no MVP'); return false;">Esqueci minha senha</a>
-    <a href="#" class="d-block text-dark fw-bold text-decoration-none" onclick="alert('Funcionalidade não implementada no MVP'); return false;">Contato com administrador</a>
+    <button type="button" class="btn btn-link text-dark fw-bold mb-2 text-decoration-none p-0" data-mvp-msg>Esqueci minha senha</button>
+    <br>
+    <button type="button" class="btn btn-link text-dark fw-bold text-decoration-none p-0" data-mvp-msg>Contato com administrador</button>
   </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script>
-  if (AppCommon.getUsuario()) window.location.href = '/dashboard';
-
-  const form = document.getElementById('login-form');
-  const btn = document.getElementById('entrar-btn');
-  const erro = document.getElementById('erro');
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    erro.textContent = '';
-    btn.disabled = true; btn.textContent = 'Entrando…';
-    try {
-      const data = await AppCommon.api('POST', '/api/login', {
-        email: document.getElementById('email').value.trim(),
-        senha: document.getElementById('senha').value,
-      });
-      AppCommon.setUsuario(data);
-      window.location.href = '/dashboard';
-    } catch (e) {
-      erro.textContent = e.message;
-      btn.disabled = false; btn.textContent = 'Entrar';
-    }
-  });
-</script>
+<script src="{{ url_for('static', filename='js/login.js') }}?v=1"></script>
 {% endblock %}

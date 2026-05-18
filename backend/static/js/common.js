@@ -111,6 +111,81 @@ window.AppCommon = (function () {
     return m ? `${m[1]}/${m[2]} - ${m[3]}` : dt;
   }
 
+  function fmtDataDia(dt) {
+    if (!dt) return '';
+    return String(dt).split(' ')[0] || dt;
+  }
+
+  function classePrioridade(prioridade) {
+    if (prioridade === 'Urgente') return 'prioridade-pill prioridade-urgente';
+    if (prioridade === 'Alta') return 'prioridade-pill prioridade-alta';
+    if (prioridade === 'Baixa') return 'prioridade-pill prioridade-baixa';
+    return 'prioridade-pill prioridade-normal';
+  }
+
+  function classeStatus(status) {
+    if (status === 'Cancelado') return 'status-pill status-cancelado';
+    if (status === 'Concluído') return 'status-pill status-resolvido';
+    if (status === 'Em andamento') return 'status-pill status-andamento';
+    return 'status-pill status-aberto';
+  }
+
+  function textoResponsavel(chamado) {
+    return chamado.responsavel_nome
+      ? chamado.responsavel_nome
+      : 'Sem responsável';
+  }
+
+  function parseItensDescricao(desc) {
+    const out = { itens: null, texto: '' };
+    if (!desc) return out;
+
+    const restante = [];
+
+    String(desc).split('\n').forEach(linha => {
+      const m = linha.match(/^Itens?:\s*(.+)$/i);
+
+      if (m && !out.itens) {
+        out.itens = m[1].trim();
+      } else {
+        restante.push(linha);
+      }
+    });
+
+    out.texto = restante.join('\n').trim();
+    return out;
+  }
+
+  function showMessage(el, message, type) {
+    if (!el) return;
+
+    el.textContent = message || '';
+    el.classList.remove('success-msg', 'error-msg', 'info-msg');
+
+    if (!message) {
+      return;
+    }
+
+    if (type === 'success') {
+      el.classList.add('success-msg');
+    } else if (type === 'info') {
+      el.classList.add('info-msg');
+    } else {
+      el.classList.add('error-msg');
+    }
+  }
+
+  function emptyState(icon, title, text) {
+    const safeIcon = escapeHtml(icon || 'bi-info-circle');
+    return `
+      <div class="empty-state">
+        <i class="bi ${safeIcon}" aria-hidden="true"></i>
+        <strong>${escapeHtml(title || '')}</strong>
+        ${text ? `<span>${escapeHtml(text)}</span>` : ''}
+      </div>
+    `;
+  }
+
   return {
     getUsuario,
     setUsuario,
@@ -119,6 +194,13 @@ window.AppCommon = (function () {
     requireUsuario,
     escapeHtml,
     api,
-    fmtDataCurta
+    fmtDataCurta,
+    fmtDataDia,
+    classePrioridade,
+    classeStatus,
+    textoResponsavel,
+    parseItensDescricao,
+    showMessage,
+    emptyState
   };
 })();

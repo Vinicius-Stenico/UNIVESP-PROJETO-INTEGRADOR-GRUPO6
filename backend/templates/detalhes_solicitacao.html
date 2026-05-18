@@ -2,9 +2,11 @@
 {% block title %}Detalhes da Solicitação{% endblock %}
 
 {% block content %}
-<div class="detail-area">
-  <h2 style="color: var(--title-blue); font-weight: 700;">🔍 Solicitação #<span id="d-id">-</span></h2>
-  <h3 class="mb-3" style="color: var(--title-blue); font-weight: 700;" id="d-titulo">…</h3>
+<div class="detail-area" id="detalhes-root" data-chamado-id="{{ chamado_id }}">
+  <h2 style="color: var(--title-blue); font-weight: 700;">
+    <i class="bi bi-search me-2" aria-hidden="true"></i>Solicitação #<span id="d-id">-</span>
+  </h2>
+  <h3 class="mb-3" style="color: var(--title-blue); font-weight: 700;" id="d-titulo">...</h3>
 
   <div class="mb-3 small">
     <div id="d-solicitante"></div>
@@ -20,14 +22,15 @@
     <div id="d-itens-conteudo"></div>
   </div>
 
-  <div class="detail-card" id="d-descricao">…</div>
+  <div class="detail-card" id="d-descricao">...</div>
 
   <div id="d-anexo-bloco" style="display:none;" class="mb-3">
     <div class="detail-card">
       <div class="fw-bold mb-2">Anexo</div>
 
       <div class="mb-2">
-        📎 <span id="d-anexo-nome">arquivo</span>
+        <i class="bi bi-paperclip" aria-hidden="true"></i>
+        <span id="d-anexo-nome">arquivo</span>
       </div>
 
       <div class="d-flex gap-2 flex-wrap">
@@ -41,6 +44,7 @@
       </div>
     </div>
   </div>
+
   <h5 class="mb-2">Histórico</h5>
   <div class="hist-block" id="d-historico"></div>
 
@@ -48,19 +52,21 @@
   <div class="hist-block" id="d-comentarios"></div>
 
   <div id="d-comentario-wrap" class="mb-3">
-    <input class="form-control rounded-pill mb-2" id="d-comentario" placeholder="Adicionar comentário…">
+    <label class="visually-hidden" for="d-comentario">Adicionar comentário</label>
+    <input class="form-control rounded-pill mb-2" id="d-comentario" placeholder="Adicionar comentário...">
     <button type="button" class="btn btn-figma-outline btn-sm" id="d-add-coment">Adicionar comentário</button>
   </div>
 
   <div class="d-flex flex-wrap gap-2 align-items-center mt-3">
     <div class="d-flex gap-2 me-auto" id="d-acoes" style="display:none;">
       <button type="button" class="btn btn-figma-outline" id="d-btn-primario"></button>
-      <button type="button" class="btn btn-outline-secondary rounded-pill" id="d-btn-cancelar">Cancelar solicitação</button>
+      <button type="button" class="btn btn-danger-soft" id="d-btn-cancelar">Cancelar solicitação</button>
     </div>
+    <div class="text-muted small me-auto" id="d-acoes-info"></div>
     <button type="button" class="btn btn-figma ms-auto" id="d-btn-voltar">Voltar</button>
   </div>
 
-  <div class="error-msg" id="d-erro"></div>
+  <div class="error-msg" id="d-erro" aria-live="polite"></div>
 </div>
 
 <div class="app-footer">
@@ -69,254 +75,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-  (async function () {
-  const usuario = await AppCommon.requireUsuario();
-  if (!usuario) return;
-
-  const ehSecretaria = usuario.tipo === 'secretaria' || usuario.tipo === 'admin';
-  const id = "{{ chamado_id }}";
-
-  let chamado = null;
-
-  async function carregar() {
-    try {
-      chamado = await AppCommon.api('GET', `/api/chamados/${id}`);
-      renderChamado();
-      const [eventos, comentarios] = await Promise.all([
-        AppCommon.api('GET', `/api/chamados/${id}/eventos`),
-        AppCommon.api('GET', `/api/chamados/${id}/comentarios`),
-      ]);
-      renderHistorico(eventos);
-      renderComentarios(comentarios);
-      montarAcoes();
-
-      // Status finalizado: tudo read-only (sem comentário, sem ações)
-      const eFinalizado = chamado.status === 'Cancelado' || chamado.status === 'Concluído';
-      document.getElementById('d-comentario-wrap').style.display = eFinalizado ? 'none' : '';
-    } catch (e) {
-      document.getElementById('d-erro').textContent = e.message;
-    }
-  }
-
-  function parseDescricao(desc) {
-    const out = { itens: null, texto: '' };
-    if (!desc) return out;
-    const linhas = desc.split('\n');
-    const restante = [];
-    linhas.forEach(l => {
-      const m = l.match(/^Itens?:\s*(.+)$/i);
-      if (m && !out.itens) out.itens = m[1].trim();
-      else restante.push(l);
-    });
-    out.texto = restante.join('\n').trim();
-    return out;
-  }
-
-  function classePrioridade(prioridade) {
-    if (prioridade === 'Urgente') return 'prioridade-pill prioridade-urgente';
-    if (prioridade === 'Alta') return 'prioridade-pill prioridade-alta';
-    if (prioridade === 'Baixa') return 'prioridade-pill prioridade-baixa';
-    return 'prioridade-pill prioridade-normal';
-  }
-
-  function renderChamado() {
-    document.getElementById('d-id').textContent = chamado.id;
-    document.getElementById('d-titulo').textContent = chamado.titulo;
-    document.getElementById('d-data').innerHTML = `<strong>Data:</strong> ${AppCommon.escapeHtml((chamado.data_criacao||'').split(' ')[0])}`;
-    if (chamado.categoria_nome) {
-      document.getElementById('d-categoria').innerHTML = `<strong>Categoria:</strong> ${AppCommon.escapeHtml(chamado.categoria_nome)}`;
-    }
-    const prioridade = chamado.prioridade || 'Normal';
-    document.getElementById('d-prioridade').innerHTML =
-      `<strong>Prioridade:</strong> <span class="${classePrioridade(prioridade)}">${AppCommon.escapeHtml(prioridade)}</span>`;
-
-    document.getElementById('d-responsavel').innerHTML =
-      `<strong>Responsável:</strong> ${AppCommon.escapeHtml(chamado.responsavel_nome || 'Ainda não assumido')}`;
-    document.getElementById('d-status').innerHTML = `<strong>Status:</strong> <span class="tag-status">${AppCommon.escapeHtml(chamado.status)}</span>`;
-    if (ehSecretaria) {
-      document.getElementById('d-solicitante').innerHTML = `<strong>Solicitante:</strong> ${AppCommon.escapeHtml(chamado.usuario_nome || '-')}`;
-    }
-    const parsed = parseDescricao(chamado.descricao);
-    if (parsed.itens) {
-      document.getElementById('d-itens-bloco').style.display = '';
-      document.getElementById('d-itens-conteudo').textContent = parsed.itens;
-    }
-    document.getElementById('d-descricao').textContent = parsed.texto || (parsed.itens ? '(sem descrição adicional)' : (chamado.descricao || '(sem descrição)'));
-
-    if (chamado.tem_anexo) {
-      document.getElementById('d-anexo-bloco').style.display = '';
-
-      const linkVisualizar = document.getElementById('d-anexo-link');
-      const linkDownload = document.getElementById('d-anexo-download');
-
-      linkVisualizar.href = `/api/chamados/${chamado.id}/anexo`;
-      linkDownload.href = `/api/chamados/${chamado.id}/anexo?download=1`;
-
-      document.getElementById('d-anexo-nome').textContent = chamado.anexo_nome || 'arquivo anexado';
-    }
-  }
-
-  function iconeEvento(tipo) {
-    const mapa = {
-      criacao: '📝',
-      status: '🔄',
-      comentario: '💬',
-      edicao: '✏️',
-      anexo: '📎',
-      cancelamento: '🚫',
-      reabertura: '🔁'
-    };
-
-    return mapa[tipo] || '•';
-  }
-
-  function renderHistorico(eventos) {
-    const el = document.getElementById('d-historico');
-
-    if (!eventos.length) {
-      el.innerHTML = '<div class="hist-line">Sem eventos.</div>';
-      return;
-    }
-
-    el.innerHTML = eventos.map(e => {
-      const tag = e.status_novo
-        ? ` <span class="tag-status">${AppCommon.escapeHtml(e.status_novo)}</span>`
-        : '';
-
-      return `
-        <div class="hist-line">
-          <strong>${iconeEvento(e.tipo)} ${AppCommon.escapeHtml(AppCommon.fmtDataCurta(e.data_criacao))}</strong><br>
-          ${AppCommon.escapeHtml(e.descricao)}${tag}
-        </div>
-      `;
-    }).join('');
-  }
-
-  function renderComentarios(comentarios) {
-    const el = document.getElementById('d-comentarios');
-    if (!comentarios.length) {
-      el.innerHTML = '<div class="hist-line text-muted fst-italic">Não há comentários.</div>';
-      return;
-    }
-    el.innerHTML = comentarios.map(c =>
-      `<div class="hist-line"><strong>${AppCommon.escapeHtml(c.usuario_nome || '-')}</strong> · ${AppCommon.escapeHtml(AppCommon.fmtDataCurta(c.data_criacao))}<br>${AppCommon.escapeHtml(c.texto)}</div>`
-    ).join('');
-  }
-
-  function montarAcoes() {
-    const acoes = document.getElementById('d-acoes');
-    const btnPri = document.getElementById('d-btn-primario');
-    const btnCanc = document.getElementById('d-btn-cancelar');
-
-    // Reset: tudo escondido por padrão
-    acoes.style.display = 'none';
-    btnPri.style.display = 'none';
-    btnCanc.style.display = 'none';
-    btnPri.onclick = null;
-    btnCanc.onclick = null;
-
-    const eAtivo = chamado.status === 'Aberto' || chamado.status === 'Em andamento';
-    if (!eAtivo) return; // status Cancelado ou Concluído → sem ações
-
-    const eDono = chamado.usuario_id === usuario.id;
-
-    if (ehSecretaria) {
-      if (chamado.status === 'Aberto' && !chamado.responsavel_id) {
-        btnPri.textContent = 'Assumir';
-        btnPri.onclick = () => assumirChamado();
-        btnPri.style.display = '';
-
-      } else if (chamado.status === 'Aberto') {
-        btnPri.textContent = 'Iniciar atendimento';
-        btnPri.onclick = () => mudarStatus('Em andamento');
-        btnPri.style.display = '';
-
-      } else if (chamado.status === 'Em andamento') {
-        btnPri.textContent = 'Concluir';
-        btnPri.onclick = () => mudarStatus('Concluído');
-        btnPri.style.display = '';
-      }
-
-      btnCanc.textContent = 'Cancelar solicitação';
-      btnCanc.onclick = () => mudarStatus('Cancelado');
-      btnCanc.style.display = '';
-
-      acoes.style.display = '';
-    } else if (eDono) {
-      // dono pode cancelar a própria solicitação ativa, mas não edita por aqui
-      btnCanc.textContent = 'Cancelar solicitação';
-      btnCanc.onclick = () => mudarStatus('Cancelado');
-      btnCanc.style.display = '';
-    }
-
-    if (btnPri.style.display !== 'none' || btnCanc.style.display !== 'none') {
-      acoes.style.display = 'flex';
-    }
-  }
-
-  async function assumirChamado() {
-    document.getElementById('d-erro').textContent = '';
-
-    try {
-      chamado = await AppCommon.api('PUT', `/api/chamados/${id}/assumir`);
-
-      renderChamado();
-      montarAcoes();
-
-      const [eventos, comentarios] = await Promise.all([
-        AppCommon.api('GET', `/api/chamados/${id}/eventos`),
-        AppCommon.api('GET', `/api/chamados/${id}/comentarios`),
-      ]);
-
-      renderHistorico(eventos);
-      renderComentarios(comentarios);
-
-    } catch (e) {
-      document.getElementById('d-erro').textContent = e.message;
-    }
-  }
-
-  async function mudarStatus(novo) {
-    document.getElementById('d-erro').textContent = '';
-    const confirmacoes = {
-      'Cancelado': 'Cancelar esta solicitação? Essa ação não pode ser desfeita.',
-      'Concluído': 'Concluir esta solicitação?',
-    };
-    if (confirmacoes[novo] && !confirm(confirmacoes[novo])) return;
-
-    const sucessos = {
-      'Cancelado': 'Solicitação cancelada.',
-      'Concluído': 'Solicitação concluída.',
-      'Em andamento': 'Solicitação atualizada para Em andamento.',
-    };
-    try {
-      await AppCommon.api('PUT', `/api/chamados/${id}/status`, { status: novo, usuario_id: usuario.id });
-      alert(sucessos[novo] || 'Status atualizado.');
-      window.location.href = '/dashboard';
-    } catch (e) {
-      document.getElementById('d-erro').textContent = e.message;
-    }
-  }
-
-  document.getElementById('d-add-coment').onclick = async () => {
-    document.getElementById('d-erro').textContent = '';
-    const input = document.getElementById('d-comentario');
-    const texto = input.value.trim();
-    if (!texto) return;
-    try {
-      await AppCommon.api('POST', `/api/chamados/${id}/comentarios`, { usuario_id: usuario.id, texto });
-      input.value = '';
-      carregar();
-    } catch (e) {
-      document.getElementById('d-erro').textContent = e.message;
-    }
-  };
-
-  document.getElementById('logout').onclick = () => AppCommon.logout('/login');
-  document.getElementById('d-btn-voltar').onclick = () => { window.location.href = '/dashboard'; };
-
-  carregar();
-  })();
-</script>
+<script src="{{ url_for('static', filename='js/detalhes_solicitacao.js') }}?v=1"></script>
 {% endblock %}
